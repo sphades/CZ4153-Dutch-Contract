@@ -5,7 +5,7 @@ import getWeb3 from "./getWeb3";
 import "./App.css";
 
 class App extends Component {
-  state = { storageValue: 0, web3: null, accounts: null, contract: null };
+  state = { storageValue: 0, web3: null, accounts: null, contract: null, tokenPurchase:0, currentPrice: 20, tokenRemaining:100 };
 
   componentDidMount = async () => {
     try {
@@ -25,7 +25,7 @@ class App extends Component {
 
       // Set web3, accounts, and contract to the state, and then proceed with an
       // example of interacting with the contract's methods.
-      this.setState({ web3, accounts, contract: instance }, this.runExample);
+      this.setState({ web3, accounts, contract: instance });
     } catch (error) {
       // Catch any errors for any of the above operations.
       alert(
@@ -35,7 +35,7 @@ class App extends Component {
     }
   };
 
-  runExample = async () => {
+  runExample = async () => { //replace this with our contract once done
     const { accounts, contract } = this.state;
 
     // Stores a given value, 5 by default.
@@ -48,23 +48,35 @@ class App extends Component {
     this.setState({ storageValue: response });
   };
 
+  handleChange(event) {
+    const value = event.target.value.replace(/\+|-/ig, ''); //only allow numeric inputs
+    this.setState({tokenPurchase: value});
+  }
+
+  mySubmitHandler = (event) => {
+    event.preventDefault();
+    //alert("You are submitting " + this.state.username);
+    this.setState(this.runExample);
+  }
+
   render() {
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
     return (
       <div className="App">
-        <h1>Good to Go!</h1>
-        <p>Your Truffle Box is installed and ready.</p>
-        <h2>Smart Contract Example</h2>
-        <p>
-          If your contracts compiled and migrated successfully, below will show
-          a stored value of 5 (by default).
-        </p>
-        <p>
-          Try changing the value stored on <strong>line 40</strong> of App.js.
-        </p>
-        <div>The stored value is: {this.state.storageValue}</div>
+        <h1>Dutch Auction for Cypherpunk</h1>
+        <h1>Time Remaining: {}</h1>
+        <h2>Current Price: {this.state.currentPrice}</h2>
+        <h3>Tokens Remaining: {this.state.tokenRemaining}</h3>
+        <form onSubmit={this.mySubmitHandler}>
+        <input type='number' max={this.state.tokenRemaining} onChange={event => this.setState({tokenPurchase: event.target.value.replace(/\D/,'')})}/>
+        {/* <input value={this.state.tokenPurchase} onChange={event => this.setState({tokenPurchase: event.target.value.replace(/\D/,'')})}/> */}
+        <input type='submit'/>
+        </form>
+        <div>Total Cost: {this.state.tokenPurchase*this.state.currentPrice}</div>
+        {/* <div>The stored value is: {this.state.storageValue}</div> */}
+        
       </div>
     );
   }
