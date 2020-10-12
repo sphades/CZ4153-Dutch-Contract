@@ -33,7 +33,7 @@ contract Escrow {
 
     
     function deposit_cpc(uint tokens_bought) onlySeller external payable { //Only seller can call this method
-        require(currState == State.AAWAITING_CPC_DEPOSIT, "Buyer has not deposited ETH");
+        require(currState == State.AWAITING_CPC_DEPOSIT, "Buyer has not deposited ETH");
         tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), tokenAddress,  address(this), tokens_bought);
         currState = State.AWAITING_AUCTION_END;
     }
