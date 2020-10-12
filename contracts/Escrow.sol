@@ -27,12 +27,14 @@ contract Escrow {
     
     function deposit_eth() onlyBuyer external payable { //Only buyer can call this method
         require(currState == State.AWAITING_ETH_DEPOSIT, "Already paid");
+        //TODO: Code for deposting ETH
         currState = State.AWAITING_CPC_DEPOSIT;
     }
 
     
     function deposit_cpc() onlySeller external payable { //Only seller can call this method
         require(currState == State.AAWAITING_CPC_DEPOSIT, "Buyer has not deposited ETH");
+        //TODO: Code for deposting CypherpunkCoin
         currState = State.AWAITING_AUCTION_END;
     }
 
