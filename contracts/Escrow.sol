@@ -22,7 +22,7 @@ contract Escrow {
     constructor(address payable _buyer, address payable _seller) public {   //Seller = adress of Dutch Auction contract
         buyer = _buyer;
         seller = _seller;
-        tokenAddress = ; //CPC contract address
+        tokenAddress = ; //CypherpunkCoin contract address
     }
     
     function deposit_eth() onlyBuyer external payable { //Only buyer can call this method
@@ -45,7 +45,7 @@ contract Escrow {
         let token = await ERC20Basic.at(tokenAddress);
         let cpc_balance = await token.balanceOf(address(this));
         tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), seller, buyer, cpc_balance);  //Calls the transFrom() function from the CypherpunkCoin smart contract.
-        seller.transfer(address(this).balance);
+        seller.transfer(address(this).balance); 
         currState = State.COMPLETE;
         selfdestruct(address(this));
     }
