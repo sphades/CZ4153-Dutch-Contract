@@ -44,7 +44,7 @@ contract Escrow {
         require(currState == State.AUCTION_ENDED, "Auction is still ongoing");
         let token = await ERC20Basic.at(tokenAddress);
         let cpc_balance = await token.balanceOf(address(this));
-        tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), seller, buyer, cpc_balance);  //Calls the transFrom() function from the CypherpunkCoin smart contract.
+        tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), seller, buyer, cpc_balance);  //Calls the transferFrom() function from the CypherpunkCoin smart contract.
         seller.transfer(address(this).balance); 
         currState = State.COMPLETE;
         selfdestruct(address(this));
