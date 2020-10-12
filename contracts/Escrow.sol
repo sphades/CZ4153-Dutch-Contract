@@ -27,7 +27,7 @@ contract Escrow {
     
     function check_eth_received(uint tokens_bought, uint price) onlySeller external payable { //Only seller can call this method
         require(currState == State.AWAITING_ETH_DEPOSIT, "Already paid");
-        require(address(this).balance>tokens_bought*price, "Insufficent ETH");
+        require(address(this).balance>=tokens_bought*price, "Insufficent ETH");
         currState = State.AWAITING_CPC_DEPOSIT;
     }
 
