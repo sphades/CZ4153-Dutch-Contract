@@ -32,9 +32,9 @@ contract Escrow {
     }
 
     
-    function deposit_cpc() onlySeller external payable { //Only seller can call this method
+    function deposit_cpc(uint tokens_bought) onlySeller external payable { //Only seller can call this method
         require(currState == State.AAWAITING_CPC_DEPOSIT, "Buyer has not deposited ETH");
-        //TODO: Code for deposting CypherpunkCoin
+        tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), tokenAddress,  address(this), tokens_bought);
         currState = State.AWAITING_AUCTION_END;
     }
 
@@ -46,7 +46,7 @@ contract Escrow {
         require(currState == State.AUCTION_ENDED, "Auction is still ongoing");
         let token = await ERC20Basic.at(tokenAddress);
         let cpc_balance = await token.balanceOf(address(this));
-        tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), seller, buyer, cpc_balance);  //Calls the transferFrom() function from the CypherpunkCoin smart contract.
+        tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), address(this), buyer, cpc_balance);  //Calls the transferFrom() function from the CypherpunkCoin smart contract.
         seller.transfer(address(this).balance); 
         currState = State.COMPLETE;
         selfdestruct(address(this));
