@@ -47,5 +47,6 @@ contract Escrow {
         tokenAddress.call(bytes4(sha3("transferFrom(address,address,uint)")), seller, buyer, cpc_balance);
         seller.transfer(address(this).balance);
         currState = State.COMPLETE;
+        selfdestruct(address(this));
     }
 }
