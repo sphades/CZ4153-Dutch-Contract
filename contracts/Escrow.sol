@@ -25,9 +25,9 @@ contract Escrow {
         tokenAddress = ; //CypherpunkCoin contract address
     }
     
-    function deposit_eth() onlyBuyer external payable { //Only buyer can call this method
+    function check_eth_received(uint tokens_bought, uint price) onlySeller external payable { //Only seller can call this method
         require(currState == State.AWAITING_ETH_DEPOSIT, "Already paid");
-        //TODO: Code for deposting ETH
+        require(address(this).balance>tokens_bought*price, "Insufficent ETH");
         currState = State.AWAITING_CPC_DEPOSIT;
     }
 
