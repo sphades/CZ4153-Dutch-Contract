@@ -27,7 +27,7 @@ contract Escrow {
         tokenAddress = ; //CypherpunkCoin contract address
         currState=State.AWAITING_ETH_DEPOSIT
         tokens_bought = _tokens_bought;
-        _price= price;
+        price = _price;
 
     }
     
