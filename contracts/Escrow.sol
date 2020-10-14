@@ -8,6 +8,8 @@ contract Escrow {
     address payable public buyer;
     address payable public seller;
     address payable public tokenAddress;
+    uint tokens_bought;
+    uint price;
     
     modifier onlyBuyer() {
         require(msg.sender == buyer, "Only buyer can call this method");
@@ -19,13 +21,17 @@ contract Escrow {
         _;
     }
     
-    constructor(address payable _buyer, address payable _seller) public {   //Seller = adress of Dutch Auction contract
+    constructor(address payable _buyer, address payable _seller, uint _tokens_bought, uint _price) public {   //Seller = adress of Dutch Auction contract
         buyer = _buyer;
         seller = _seller;
         tokenAddress = ; //CypherpunkCoin contract address
+        currState=State.AWAITING_ETH_DEPOSIT
+        tokens_bought = _tokens_bought;
+        _price= price;
+
     }
     
-    function check_eth_received(uint tokens_bought, uint price) onlySeller external payable { //Only seller can call this method
+    function check_eth_received() onlySeller external payable { //Only seller can call this method
         require(currState == State.AWAITING_ETH_DEPOSIT, "Already paid");
         require(address(this).balance>=tokens_bought*price, "Insufficent ETH");
         currState = State.AWAITING_CPC_DEPOSIT;
