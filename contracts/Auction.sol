@@ -18,7 +18,7 @@ contract Auction {
     uint256 totalEther;
     uint256 startPrice;
     uint256 reservedPrice;
-    uint256 clearingPrice
+    uint256 clearingPrice;
     uint256 totalSupply;
     uint256 startTime;
     uint256 demand;
