@@ -24,7 +24,7 @@ contract Escrow {
     constructor(address payable _buyer, address payable _seller, uint _tokens_bought, uint _price) public {   //Seller = adress of Dutch Auction contract
         buyer = _buyer;
         seller = _seller;
-        tokenAddress = 0x0; //CypherpunkCoin contract address
+        tokenAddress = ; //CypherpunkCoin contract address
         currState=State.AWAITING_ETH_DEPOSIT
         tokens_bought = _tokens_bought;
         price = _price;
