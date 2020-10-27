@@ -17,11 +17,12 @@ contract Auction {
     // total Ether supply
     uint256 totalEther;
     uint256 startPrice;
-    uint256 reservedPrice;
-    uint256 clearingPrice;
+    uint256 reservedPrice;  // hold this value on a server? 
+    uint256 clearingPrice; 
     uint256 totalSupply;
     uint256 startTime;
     uint256 demand;
+    uint256 currentPrice;
     CypherpunkCoin private token;
     State private currState;
 
@@ -33,18 +34,19 @@ contract Auction {
 
     function commit(uint256 amount) public {
         require(currState == State.OPEN, "This auction already closes");
-        if (now.sub(startTime) > 20 minutes) {
+        if (now.sub(startTime) > 20 minutes) { //enforce? 
             clearingPrice = reservedPrice;
             currState = State.CLOSE;
             return;
         }
-        uint256 curPrice = (20 minutes - now + startTime)
+        uint256 curPrice = (20 minutes - now + startTime) 
             .div(20 minutes)
             .mul(startPrice - reservedPrice)
             .add(reservedPrice);
         totalEther += amount;
         commitments.push(commitment(msg.sender, amount));
         demand = totalEther.div(curPrice);
+        currentPrice = curPrice;
         if (demand > totalSupply) {
             releaseTokens();
             clearingPrice = curPrice;
@@ -61,7 +63,7 @@ contract Auction {
                 totalEther = 0;
             }
             else totalEther -= toTransfer;
-            token._mint(commitments[i].bidder(), toTransfer);
+            token._mint(commitments[i].bidder(), toTransfer); 
         }
         // we are using the minting functions so no burning for now :)
     }
