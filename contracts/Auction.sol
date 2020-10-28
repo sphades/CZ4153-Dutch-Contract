@@ -37,6 +37,7 @@ contract Auction {
     function commit() external payable {
         require(currState == State.OPEN, "This auction already closes");
         if (now.sub(startTime) > 20 minutes) {
+            //enforce?
             clearingPrice = reservedPrice;
             currState = State.CLOSE;
             return;
