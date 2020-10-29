@@ -13,63 +13,110 @@ contract Auction {
     }
 
     commitment[] private commitments;
+    mapping(address => uint256) bidderToAmount;
 
-    enum State {OPEN, CLOSE}
+    enum State {OPENED, CLOSED, RELEASED}
     // total Ether stored
-    uint256 totalEther;
-    uint256 startPrice;
-    uint256 reservedPrice;
-    uint256 clearingPrice;
+    uint256 public totalEther;
+    uint256 public startPrice;
+    uint256 public reservedPrice;
+    uint256 public clearingPrice;
     // total Supply of tokens
-    uint256 totalSupply;
-    uint256 startTime;
+    uint256 public tokenSupply;
+    uint256 public startTime;
+    uint256 public curPrice;
     // uint256 demand;
 
     CypherpunkCoin private token;
     State private currState;
+    uint256 public constant timeLimit = 10 minutes;
 
-    constructor(uint256 _startPrice, CypherpunkCoin _token) public {
+    constructor(
+        uint256 _startPrice,
+        uint256 _reservedPrice,
+        uint256 _tokenSupply,
+        CypherpunkCoin _token
+    ) public {
         startTime = now;
         startPrice = _startPrice;
+        reservedPrice = _reservedPrice;
+        tokenSupply = _tokenSupply;
         token = _token;
+        currState = State.OPENED;
     }
 
     function commit() external payable {
-        require(currState == State.OPEN, "This auction already closes");
-        if (now.sub(startTime) > 20 minutes) {
-            //enforce?
+        require(currState == State.OPENED, "This auction already closes");
+        if (now.sub(startTime) > timeLimit) {
             clearingPrice = reservedPrice;
-            currState = State.CLOSE;
+            currState = State.CLOSED;
+            // send back money to bidder
+            msg.sender.transfer(msg.value);
             return;
         }
-        uint256 curPrice = (20 minutes - now + startTime)
-            .div(20 minutes)
-            .mul(startPrice - reservedPrice)
+        curPrice = (startTime.add(timeLimit).sub(now))
+            .mul(1000)
+            .div(timeLimit)
+            .mul(startPrice.sub(reservedPrice))
+            .div(1000)
             .add(reservedPrice);
-        totalEther += msg.value;
+        totalEther = totalEther.add(msg.value);
         commitments.push(commitment(msg.sender, msg.value));
+        bidderToAmount[msg.sender] = bidderToAmount[msg.sender].add(msg.value);
         // demand = totalEther.div(curPrice);
         // to check whether the demand is larger than supply
-        if (totalEther > totalSupply.mul(curPrice)) {
-            releaseTokens();
+        if (totalEther > tokenSupply.mul(curPrice * 10000000000000)) {
             clearingPrice = curPrice;
-            currState = State.CLOSE;
+            currState = State.CLOSED;
         }
     }
 
-    function releaseTokens() internal {
-        for (uint256 i = 0; i < commitments.length; i++) {
-            if (totalSupply == 0) break;
-            uint256 toTransfer = commitments[i].amount.div(clearingPrice);
-            if (toTransfer > totalSupply) {
-                toTransfer = totalSupply;
-                totalSupply = 0;
-            } else totalSupply -= toTransfer;
-            token.transfer(commitments[i].bidder, toTransfer);
+    modifier checkRelease() {
+        require(currState != State.RELEASED, "The auction already releases");
+        if (currState == State.OPENED) {
+            require(
+                now.sub(startTime) > timeLimit,
+                "The auction is still opened, please wait"
+            );
+            clearingPrice = reservedPrice;
+            currState = State.CLOSED;
         }
-        address payable addressToken = address(uint160(address(token)));
-        addressToken.transfer(totalEther);
-        if (totalSupply > 0) token.burn(totalSupply);
-        // we are using the minting functions so no burning for now :)
+        _;
+    }
+
+    // anyone can trigger the release as long as it satisfies the requirements
+    function releaseTokens() external checkRelease() {
+        uint256 ethSendToTokenContract = totalEther;
+        uint256 remainingEther = 0;
+        for (uint256 i = 0; i < commitments.length; i++) {
+            if (tokenSupply == 0) break;
+            uint256 tokenTransfer = commitments[i].amount.div(
+                clearingPrice * 10000000000000
+            );
+            if (tokenTransfer > tokenSupply) {
+                //send back redundant ether
+                address payable payableLastBidder = address(
+                    uint160(commitments[i].bidder)
+                );
+                tokenTransfer = tokenSupply;
+                uint256 ethSendTopayableLastBidder = commitments[i].amount.sub(
+                    tokenTransfer.mul(clearingPrice * 10000000000000)
+                );
+                payableLastBidder.transfer(ethSendTopayableLastBidder);
+                ethSendToTokenContract = ethSendToTokenContract.sub(
+                    ethSendTopayableLastBidder
+                );
+                tokenSupply = 0;
+            } else tokenSupply = tokenSupply.sub(tokenTransfer);
+            token.transfer(commitments[i].bidder, tokenTransfer);
+        }
+        address payable payableToken = address(uint160(address(token)));
+        payableToken.transfer(ethSendToTokenContract);
+        if (tokenSupply > 0) token.burn(tokenSupply);
+        currState = State.RELEASED;
+    }
+
+    function getCommitments(address bidder) public view returns (uint256) {
+        return bidderToAmount[bidder];
     }
 }
