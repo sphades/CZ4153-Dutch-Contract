@@ -4,9 +4,9 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./CypherpunkCoin.sol";
 
 /*Differences:
-time limit = 30s
-State is public and settable
-fake commitments*/
+1.time limit = 30s
+2.State is public and settable
+3.fake commitments*/
 
 contract AuctionTest {
     using SafeMath for uint256;

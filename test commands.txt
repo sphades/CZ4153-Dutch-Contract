@@ -1,0 +1,14 @@
+1. Start Ganache
+================================================================
+2. In cmd:
+cd Documents/GitHub/CZ4153-Dutch-Contract
+truffle compile
+truffle migrate
+================================================================
+3. Get Reentrancy contract address from cmd
+4. Send 5000 wei from any Ganache wallet to Reentrancy contract
+================================================================
+5.In cmd:
+truffle test
+=============================END===============================
+
