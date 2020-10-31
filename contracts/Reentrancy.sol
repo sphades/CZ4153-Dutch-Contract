@@ -1,28 +1,29 @@
 pragma solidity ^0.6.0;
 
-import "./Auction.sol";
+import "./AuctionTest.sol";
 import "./CypherpunkCoin.sol";
 
-contract ReentrancyTest{
-    Auction public auction;
-    uint256 rightfulCYCAmt;
 
-    constructor{
-        auction = Auction(_startPrice,
-                          _reservedPrice,
-                          _tokenSupply,
-                          CypherpunkCoin _token)
+contract Reentrancy{
+    AuctionTest public auction;
+    CypherpunkCoin cpc;
+    uint256 public constant rightfulCYCAmt = 5;
+    uint256 public constant finalPrice = 1000;
+    uint256 public balance;
+
+    constructor() public {
+        cpc = new CypherpunkCoin("CypherpunkCoin", "CPC");
+        auction = new AuctionTest(10000, finalPrice, 50000000, cpc);
     }
 
-    function bid(){
-        rightfulCYCAmt = this.balance/auction.reservedPrice *10000000000000;
-        auction.commit().value(this.balance);
-        // No option to sleep/wait in Solidity, request for Auction constructor to have time_limit variable.
+    function bid() external{
+        auction.commit.value(finalPrice * rightfulCYCAmt)();
+        auction.setState();
         auction.releaseTokens();
     }
 
     //Fallback function
-    funtion() payable{
+    fallback() external payable{
         auction.releaseTokens();
     }
 
