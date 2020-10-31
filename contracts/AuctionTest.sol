@@ -34,7 +34,7 @@ contract AuctionTest {
 
     CypherpunkCoin private token;
     State public currState;
-    uint256 public constant timeLimit = 30 seconds;
+    uint256 public constant timeLimit = 5 minutes;
 
     constructor(
         uint256 _startPrice,
