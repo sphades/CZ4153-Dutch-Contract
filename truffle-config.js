@@ -23,6 +23,7 @@
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
+const path = require("path");
 
 module.exports = {
   /**
@@ -34,7 +35,7 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
-
+  
   networks: {
     // Useful for testing. The `development` name is special - truffle uses it by default
     // if it's defined here and no other network is specified at the command line.
@@ -83,9 +84,12 @@ module.exports = {
   },
 
   // Configure your compilers
+  contracts_build_directory: path.join(__dirname, "client/src/contracts"),
   compilers: {
+    
     solc: {
       version: "^0.6.0",    // Fetch exact version from solc-bin (default: truffle's version)
+      
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       // settings: {          // See the solidity docs for advice about optimization and evmVersion
       //  optimizer: {

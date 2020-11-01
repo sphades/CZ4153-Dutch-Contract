@@ -21,7 +21,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         _setupRole(AUCTION_CREATOR_ROLE, msg.sender);
         _mint(msg.sender, 1000);
     }
-
+    address public auctionAddress;
     function createAuction(
         uint256 _startPrice,
         uint256 _reservedPrice,
@@ -37,6 +37,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
             _supply,
             this
         );
+        auctionAddress = address(myAuction);
         transfer(address(myAuction), _supply);
         return myAuction;
     }
