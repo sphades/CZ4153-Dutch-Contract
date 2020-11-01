@@ -30,7 +30,7 @@ contract Auction is AccessControl {
 
     CypherpunkCoin private token;
     State public currState;
-    uint256 public constant timeLimit = 2 minutes;
+    uint256 public constant timeLimit = 10 minutes;
 
     constructor(
         uint256 _startPrice,
