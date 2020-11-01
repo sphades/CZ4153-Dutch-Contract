@@ -83,7 +83,7 @@ class App extends Component {
     try{
       const { accounts, auctionContract, tokenPurchase} = this.state;
       // call commit() somewhere here
-    await auctionContract.methods.commit().send({from:accounts[0], value:tokenPurchase})
+    await auctionContract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*this.state.tokenPurchase});
     }
     catch (error){
       alert(error)
@@ -91,7 +91,7 @@ class App extends Component {
 
     //////////////////////////////////////////////// (sample code)
     // Stores a given value, 5 by default.
-    await contract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*this.state.tokenPurchase});
+    // await contract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*this.state.tokenPurchase});
 
     // Get the value from the contract to prove it worked.
     //const response = await contract.methods.get().call();
