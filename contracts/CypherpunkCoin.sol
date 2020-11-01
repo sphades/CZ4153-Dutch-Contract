@@ -30,8 +30,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         uint256 _startPrice,
         uint256 _reservedPrice,
         uint256 _supply
-    ) public returns (Auction) {
-        require(
+    ) public returns (Auction) {require(
             hasRole(AUCTION_CREATOR_ROLE, msg.sender),
             "CypherpunkCoin: must have auction creator role to create an auction"
         );

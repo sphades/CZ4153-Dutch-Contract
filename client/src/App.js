@@ -6,34 +6,28 @@ import "./App.css";
 import Timer from 'react-compound-timer'
 
 class App extends Component {
-  state = { web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: 0, currentPrice: 0, phase: 'Auction has not started', currentCommitment:0, timeRemaining:0 };
+  state = { web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: 0, currentPrice: 0, phase: '', currentCommitment:0, timeRemaining:1200000};
   
   componentDidMount = async () => {
     try {
       // Get network provider and web3 instance.
       const web3 = await getWeb3();
-      //console.log(web3.givenProvider);
       // Use web3 to get the user's accounts.
       const accounts = await web3.eth.getAccounts();
-      //console.log(accounts);
+
       // Get the contract instance.
       const deployedNetwork = CypherpunkCoin.networks['5777'];
-      //console.log(deployedNetwork.address);
       var tokenContract = await new web3.eth.Contract(
         CypherpunkCoin.abi,
         deployedNetwork.address,
       );
 
-      console.log(tokenContract);
-      tokenContract.methods.AUCTION_CREATOR_ROLE().call().then(console.log)
-      
-      // await tokenContract.methods.createAuction(300,100,200).send({from:accounts[0]});
       // Set web3, accounts, and contract to the state, 
-      
       this.setState({ web3, accounts, tokenContract});
-      this.deployContract();
-      this.loadData();
-      setInterval(this.loadData, 3000); //every 30s check information from auction
+      
+      await this.getAuctionContract();
+      await this.loadData();
+      setInterval(this.loadData, 30000); //every 30s check information from auction
     } catch (error) {
       // Catch any errors for any of the above operations.
       alert(
@@ -42,35 +36,55 @@ class App extends Component {
       console.error(error);
     }
   };
+  listenToState(fromBlockNumber) {
+    const {auctionContract} = this.state;
+    if (auctionContract != null){
+    console.log('Listening for State change');
+    auctionContract.events.changeState({
+      fromBlock: (fromBlockNumber || 0),
+    }, this.stateListener).on('data',this.stateListener);
+  }}
+
+   stateListener = async (err, contractEvent) => {
+    if (err) {
+      console.error('state listener error', err);
+      return;
+    }
+    console.log('Heard something!');
+    const {
+      event,
+      returnValues,
+      blockNumber,
+    } = contractEvent;
+    const {
+      s
+    } = returnValues;
+    console.log(`${event}: State changed to ${s} (block #${blockNumber})`)
+    var phase;
+    switch (s){
+      case 0:  
+        phase = 'Created'; break;
+      case 1: 
+        phase = 'ongoing'; break;
+      case 2: 
+        phase = 'Ended'; break;
+      case 3: 
+        phase = 'Tokens Released'; break;
+      default:
+        phase = 'Auction has not started';
+    }
+    await this.setState({
+      phase:phase
+    });
+  }
 
   loadData = async() => {
     try {
       const {auctionContract,accounts,timeRemaining} = this.state;
       if (auctionContract != null){
-       //const currentPrice = await auctionContract.methods.;
-       //const state = await auctionContract.methods.State().call().call();
-       //const startPrice = await auctionContract.methods.startPrice().call();
-       //const reservedPrice = await auctionContract.methods.reservedPrice().call();
        const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
-      //  console.log(startTime)
-      //  console.log(Date.now()/1000)
-       
-      //  const currentPrice = startPrice - ((startPrice-reservedPrice)/(Date.now()/1000-startTime))
-       
-       
-       //const state = await auctionContract.methods.tokenSupply().call().call();
-       var phase;
-       if (timeRemaining<0){
-         phase='Ended'
-       }
-       else if (timeRemaining>0){
-         phase='Ongoing'
-       }
-
        this.setState({
-        //currentPrice: currentPrice,
         currentCommitment: currentCommitment,
-        phase: phase, //to be updated
        })
       }
       
@@ -83,23 +97,11 @@ class App extends Component {
     try{
       const { accounts, auctionContract, tokenPurchase} = this.state;
       // call commit() somewhere here
-    await auctionContract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*this.state.tokenPurchase});
+    await auctionContract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*tokenPurchase});
     }
     catch (error){
       alert(error)
     }
-
-    //////////////////////////////////////////////// (sample code)
-    // Stores a given value, 5 by default.
-    // await contract.methods.commit().send({ from: accounts[0],value: Math.pow(10,18)*this.state.tokenPurchase});
-
-    // Get the value from the contract to prove it worked.
-    //const response = await contract.methods.get().call();
-
-    // Update state with the result.
-    //this.setState({ storageValue: response });
-
-    /////////////////////////////////////////////////
   };
 
   handleChange(event) {
@@ -114,11 +116,14 @@ class App extends Component {
 
   handleContractDeploy = (event) =>{
     event.preventDefault();
-    this.setState(this.deployContract)
+    this.setState(this.getAuctionContract)
   }
 
-  deployContract = async () => {  //replace with contract deployment function
+  // handleStart = () => {
     
+  // }
+
+  getAuctionContract = async () => {  
     const { tokenContract,web3,  } = this.state;
     console.log("connecting to auction");
     try{
@@ -130,12 +135,13 @@ class App extends Component {
     );
     
     this.loadData();
+    this.listenToState(0);
     var startTime = Number(await auction.methods.startTime().call());
     var timeLimit = Number(await auction.methods.timeLimit().call());
     const startPrice = await auction.methods.startPrice().call();
     const reservedPrice = await auction.methods.reservedPrice().call();
     var timeRemaining = (timeLimit+startTime)-Date.now()/1000;
-    
+    await this.listenToState(0);
     console.log(startTime);
     console.log(timeLimit);
     console.log(timeRemaining);
@@ -155,20 +161,21 @@ class App extends Component {
     return ( //admin page to start contract: start price, reserve price text box
       <div className="App">
         <h1>Dutch Auction for Cypherpunk</h1>
+        <button onClick={this.handleContractDeploy}>Refresh</button>
         <Timer
+          //start={this.handleStart}
           initialTime={this.state.timeRemaining} //20 mins
           direction="backward"
-          startImmediately={true}
-          //onStart={() => this.deployContract}  //make some adjustments to this later
+          startImmediately={false}
+          lastUnit="m"
+          //onStart={() => this.getAuctionContract}  //make some adjustments to this later
         >
-          {({ start, getTime }) => (
+          {(start,reset) => (
             <React.Fragment>
+              
               <h1>
                 Time Remaining:  <Timer.Minutes />:<Timer.Seconds />
               </h1>
-              <div>
-                <button onClick={this.handleContractDeploy}>Refresh</button>
-              </div>
             </React.Fragment>
           )}
         </Timer>
