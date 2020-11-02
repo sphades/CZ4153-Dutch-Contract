@@ -15,7 +15,7 @@ import Toolbar from '@material-ui/core/Toolbar';
 import clsx from 'clsx';
 import RefreshIcon from '@material-ui/icons/Refresh';
 import IconButton from '@material-ui/core/IconButton';
-import { FormControl, Input, InputAdornment, Button, ButtonBase } from '@material-ui/core';
+import { FormControl, Input, InputAdornment, Button, ButtonBase, TextField } from '@material-ui/core';
 import pic from './images/Dutch-Auction-small.jpg'
 
 const useStyles = theme => ({
@@ -89,7 +89,7 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...,' ,phase: '', currentCommitment: 0, endTime: 1200000, left: 'calculating...,', isPositive: false, demand: 'calculating...,'
+      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...,' ,phase: '', currentCommitment: 0, endTime: 1200000, left: 'calculating...,', isPositive: false, demand: 'calculating...,', endTime: null
     };
   }
   componentDidMount = async () => {
@@ -115,6 +115,8 @@ class App extends Component {
       this.updateTime()
       let intervalId = setInterval(() => {
         this.updateTime();
+        this.loadData()
+        //this.listenToState(0);
       }, 1000);
       this.setState({ intervalId: intervalId })
 
@@ -127,37 +129,61 @@ class App extends Component {
     }
   };
 
-  listenToState(fromBlockNumber) {
+  async listenToState(fromBlockNumber) {
     const { auctionContract } = this.state;
     if (auctionContract != null) {
       console.log('Listening for State change');
-      auctionContract.events.changeState({
-        fromBlock: (fromBlockNumber || 0),
-      }, this.stateListener);
+      // auctionContract.events.allEvents({}, console.log())
+      // auctionContract.events.changeState({
+      //   fromBlock: (fromBlockNumber || 0),
+      // }, this.stateListener);
       auctionContract.events.closeAndSendBackMoney({
         fromBlock: (fromBlockNumber || 0),
       }, this.moneyListener);
-      auctionContract.events.newCommit({
-        fromBlock: (fromBlockNumber || 0),
-      }, this.commitListener);
+      // auctionContract.events.newCommit({
+      //   fromBlock: (fromBlockNumber || 0),
+      // }, this.commitListener);
     }
   }
 
   commitListener = async (err, contractEvent) => {
+    const{prevNum}= this.state
     if (err) {
       console.error('commit listener error', err);
       return;
     }
     console.log('Heard commit!');
+    const {
+      event,
+      returnValues,
+      blockNumber,
+    } = contractEvent;
+    const {
+      tEther
+    } = returnValues;
+    if (prevNum !== blockNumber){
+      console.log(`${event}: Commit suceeded (block #${blockNumber}), ${tEther} transferred`)
+      alert('Accepted transaction')
+    this.setState({prevNum:blockNumber,})
+    }
   }
 
   moneyListener = async (err, contractEvent) => {
+    const{prevNum}= this.state
     if (err) {
       console.error('money listener error', err);
       return;
     }
     console.log('Heard money!');
-
+    const {
+      event,
+      blockNumber,
+    } = contractEvent;
+    if (prevNum !== blockNumber){
+    console.log(`${event}: Money changed (block #${blockNumber})`)
+    alert('Rejected transaction')
+    this.setState({prevNum:blockNumber,})
+    }
   }
   stateListener = async (err, contractEvent) => {
     if (err) {
@@ -192,9 +218,10 @@ class App extends Component {
     });
   }
 
+    
   loadData = async () => {
     try {
-      const { auctionContract, accounts,timeLimit } = this.state;
+      const { auctionContract, accounts } = this.state;
       if (auctionContract != null) {
         const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
         const s = Number(await auctionContract.methods.currState().call());
@@ -225,9 +252,16 @@ class App extends Component {
 
   runCommit = async () => {
     try {
-      const { accounts, auctionContract, tokenPurchase } = this.state;
+      const { web3, accounts, auctionContract, tokenPurchase } = this.state;
       // call commit() somewhere here
-      await auctionContract.methods.commit().send({ from: accounts[0], value: Math.pow(10, 18) * tokenPurchase });
+      var blocknumber = Number(await web3.eth.getBlockNumber())+1;
+      await auctionContract.methods.commit().send({ from: accounts[0], value: Math.pow(10, 18) * tokenPurchase }); //send in wei
+      await auctionContract.events.closeAndSendBackMoney({
+        fromBlock: (blocknumber),
+      }, this.moneyListener);
+      await auctionContract.events.newCommit({
+        fromBlock: (blocknumber),
+      }, this.commitListener);
     }
     catch (error) {
       alert(error)
@@ -272,16 +306,17 @@ class App extends Component {
         Auction.abi,
         auctionAddress
       );
-      const startPrice = Number(await auction.methods.startPrice().call());
-      const reservedPrice = Number(await auction.methods.reservedPrice().call());
+      const startPrice = Number(await auction.methods.startPrice().call()); //what unit? microether
+      const reservedPrice = Number(await auction.methods.reservedPrice().call()); //what unit? microether
       this.loadData();
       var startTime = Number(await auction.methods.startTime().call());
       var timeLimit = Number(await auction.methods.timeLimit().call());
       var endTime = timeLimit + startTime
-      var priceDiff = (reservedPrice-startPrice)/timeLimit;
+      var priceDiff = (reservedPrice-startPrice)/timeLimit; 
       var totalEther = Number(await auction.methods.totalEther().call());
-      this.setState(this.listenToState(0))
-      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff, startPrice:startPrice, timeLimit:timeLimit, totalEther:totalEther });
+      var tokenSupply = Number(await auction.methods.tokenSupply().call());
+      await this.listenToState(0)
+      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff, startPrice:startPrice, timeLimit:timeLimit, totalEther:totalEther , tokenSupply:tokenSupply});
     } catch (error) {
       alert(
         `Failed to connect to auction. Check console for details.`,
@@ -321,16 +356,18 @@ class App extends Component {
     
    
     let text = this.getTimedeltaText(left)
+    console.log((left/1000))
+    var currentPrice;
     if (text !== "") {
       if (isPositive) {
         text += " left"
-        var currentPrice = (timeLimit-left)*priceDiff+startPrice;
+         currentPrice = (timeLimit-left/1000)*priceDiff+startPrice; //y=(x1-x)*m+y0 
       } else {
         text += " since auction ended"
-        var currentPrice = (timeLimit)*priceDiff+startPrice;
+         currentPrice = (timeLimit)*priceDiff+startPrice; //(600*-0.15)+100
       }
     }
-    var demand = totalEther/currentPrice
+    var demand = (totalEther/Math.pow(10, 12))/currentPrice //total ether is in wei, currentprice is in microether?
     
     this.setState(
       {
@@ -357,7 +394,6 @@ class App extends Component {
 
   render() {
     const { classes } = this.props;
-    const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
@@ -393,28 +429,31 @@ class App extends Component {
                           <Typography component="h1" variant="h6" color="inherit" noWrap>
                             Time Remaining:
                     </Typography>
+                    {/* //if (this.state.auctionContract) */}
                           <span className="lefttext">{this.state.left}</span>
                           <h3>Auction Phase: {this.state.phase}</h3>
-                          <h3>Estimated Current Price: {this.state.currentPrice}</h3>
-                          <h3>Current Demand: {this.state.demand}</h3>
+                          <h3>Total Supply: {this.state.tokenSupply}</h3>
+                          <h3>Estimated Current Price: {this.state.currentPrice} mEth</h3>
+                          <h3>Current Demand: {this.state.demand} tokens</h3>
                           {/* <h3>Tokens Remaining: {this.state.tokenRemaining}</h3> */}
 
                           <form onSubmit={this.mySubmitHandler} autoComplete="off">
                             <FormControl className={clsx(classes.margin, classes.withoutLabel, classes.textField)}>
-                              <Input
+                              <TextField
                                 required
                                 margin='dense'
                                 step={0.0000000001}
                                 type='number'
-                                //onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
+                                onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
                                 endAdornment={<InputAdornment position="end">ETH</InputAdornment>}
                               />
-                            </FormControl>
-                            <Button
+                              <Button
                               type="submit"
                               variant="contained"
                               color="primary"
                             >Submit</Button>
+                            </FormControl>
+                            
                           </form>
                         </Grid>
                       </Grid>
@@ -424,7 +463,8 @@ class App extends Component {
               </Grid>
               <Grid item xs={12} md={4} lg={3}>
                 <Paper className={classes.paper}>
-                  <h3>Your Current Commitment: {this.state.currentCommitment} Wei</h3>
+                  <h3>Your Current Commitment: {this.state.currentCommitment/Math.pow(10,12)} mEth</h3>
+                  <h3>Current Token Allocation: {(this.state.currentCommitment/Math.pow(10,12))/ this.state.currentPrice} Cypherpunk tokens</h3>
                   <Button variant="contained"
                     color="primary" onClick={this.handleTokenRelease}>Release Tokens</Button>
                 </Paper>
