@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "./Auction.sol";
 
 contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
-    Auction public currAuction;
     bytes32 public constant AUCTION_CREATOR_ROLE = keccak256(
         "AUCTION_CREATOR_ROLE"
     );
@@ -23,21 +22,29 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         _setupRole(AUCTION_CREATOR_ROLE, msg.sender);
         _mint(msg.sender, 1000);
     }
+
     address public auctionAddress;
 
-    // create auction from the token
+    // prices in units of microEther
     function createAuction(
         uint256 _startPrice,
         uint256 _reservedPrice,
-        uint256 _supply
-    ) public returns (Auction) {require(
+        uint256 _supply,
+        uint256 _timeLimit
+    ) external {
+        require(
             hasRole(AUCTION_CREATOR_ROLE, msg.sender),
             "CypherpunkCoin: must have auction creator role to create an auction"
         );
-        currAuction = new Auction(_startPrice, _reservedPrice, _supply, this);
-        transfer(address(currAuction), _supply);
-        auctionAddress = address(currAuction);
-        return currAuction;
+        Auction auction = new Auction(
+            _startPrice,
+            _reservedPrice,
+            _supply,
+            _timeLimit,
+            this
+        );
+        transfer(address(auction), _supply);
+        auctionAddress = address(auction);
     }
 
     function openCurrAuction() external {
@@ -45,7 +52,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
             hasRole(AUCTION_CREATOR_ROLE, msg.sender),
             "CypherpunkCoin: must have auction creator role to open this auction"
         );
-        currAuction.openAuction();
+        Auction(auctionAddress).openAuction();
     }
 
     receive() external payable {}
