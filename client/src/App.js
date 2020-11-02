@@ -15,7 +15,8 @@ import Toolbar from '@material-ui/core/Toolbar';
 import clsx from 'clsx';
 import RefreshIcon from '@material-ui/icons/Refresh';
 import IconButton from '@material-ui/core/IconButton';
-import { FormControl, Input, InputAdornment, Button } from '@material-ui/core';
+import { FormControl, Input, InputAdornment, Button, ButtonBase } from '@material-ui/core';
+import pic from './images/Dutch-Auction-small.jpg'
 
 const useStyles = theme => ({
   root: {
@@ -73,8 +74,8 @@ const useStyles = theme => ({
     height: 400,
   },
   image: {
-    width: 128,
-    height: 128,
+    width: 480,
+    height: 270,
   },
   img: {
     margin: 'auto',
@@ -117,7 +118,7 @@ class App extends Component {
         this.updateTime();
       }, 1000);
       this.setState({ intervalId: intervalId })
-      
+
     } catch (error) {
       // Catch any errors for any of the above operations.
       alert(
@@ -194,26 +195,27 @@ class App extends Component {
 
   loadData = async () => {
     try {
-      const { auctionContract, accounts } = this.state;
+      const { auctionContract, accounts,timeLimit } = this.state;
       if (auctionContract != null) {
         const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
-        const s  = Number(await auctionContract.methods.currState().call());
+        const s = Number(await auctionContract.methods.currState().call());
+        
         var phase;
-    switch (s) {
-      case 0:
-        phase = 'Created'; break;
-      case 1:
-        phase = 'Ongoing'; break;
-      case 2:
-        phase = 'Ended'; break;
-      case 3:
-        phase = 'Tokens Released'; break;
-      default:
-        phase = 'default';
-    }
+        switch (s) {
+          case 0:
+            phase = 'Created'; break;
+          case 1:
+            phase = 'Ongoing'; break;
+          case 2:
+            phase = 'Ended'; break;
+          case 3:
+            phase = 'Tokens Released'; break;
+          default:
+            phase = 'Auction has not started';
+        }
         this.setState({
           currentCommitment: currentCommitment,
-          phase:phase
+          phase: phase
         })
       }
 
@@ -249,15 +251,15 @@ class App extends Component {
     this.setState(this.getAuctionContract)
   }
   handleTokenRelease = (event) => {
-    const { auctionContract,accounts } = this.state;
+    const { auctionContract, accounts } = this.state;
     event.preventDefault();
     try {
-    auctionContract.methods.releaseTokens().send({from: accounts[0]});
-    //alert("Token Released")
-    }catch (error) {
+      auctionContract.methods.releaseTokens().send({ from: accounts[0] });
+      //alert("Token Released")
+    } catch (error) {
       alert(
         `Failed to release token. Check console for details.`)
-        console.error(error);
+      console.error(error);
     }
   }
 
@@ -271,15 +273,15 @@ class App extends Component {
         Auction.abi,
         auctionAddress
       );
-      
+      const startPrice = Number(await auction.methods.startPrice().call());
+      const reservedPrice = Number(await auction.methods.reservedPrice().call());
       this.loadData();
       var startTime = Number(await auction.methods.startTime().call());
       var timeLimit = Number(await auction.methods.timeLimit().call());
-      const startPrice = await auction.methods.startPrice().call();
-      const reservedPrice = await auction.methods.reservedPrice().call();
       var endTime = timeLimit + startTime
+      var priceDiff = (startPrice-reservedPrice)/timeLimit;
       this.setState(this.listenToState(0))
-      this.setState({ auctionContract: auction, endTime: endTime });
+      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff });
     } catch (error) {
       alert(
         `Failed to connect to auction. Check console for details.`,
@@ -310,6 +312,7 @@ class App extends Component {
   }
 
   updateTime() {
+    const {priceDiff} = this.state;
     let left = this.state.endTime * 1000 - new Date();
     let isPositive = left > 0
     if (this.state.isPositive && !isPositive && localStorage.getItem("webNotify") === "true") {
@@ -324,11 +327,12 @@ class App extends Component {
         text += " since expiration"
       }
     }
-
+    var currentPrice = 1;
     this.setState(
       {
         left: text,
-        isPositive: isPositive
+        isPositive: isPositive,
+        currentPrice:currentPrice
       }
     )
   }
@@ -371,38 +375,53 @@ class App extends Component {
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={8} lg={9}>
-                <Paper className={fixedHeightPaper}>
-                  <Typography component="h1" variant="h6" color="inherit" noWrap>
-                    Time Remaining:
+                <Paper className={classes.paper}>
+                  <Grid container spacing={2}>
+                    <Grid item>
+                      <ButtonBase className={classes.image}>
+                        <img className={classes.img} alt="complex" src={pic} />
+                      </ButtonBase>
+                    </Grid>
+                    <Grid item xs={12} sm container>
+                      <Grid item xs container direction="column" spacing={2}>
+                        <Grid item xs>
+                          <Typography component="h1" variant="h6" color="inherit" noWrap>
+                            Time Remaining:
                     </Typography>
-                  <span className="lefttext">{this.state.left}</span>
-                  <h3>Auction Phase: {this.state.phase}</h3>
-                  <h3>Estimated Current Price: {this.state.currentPrice}</h3>
-                  {/* <h3>Tokens Remaining: {this.state.tokenRemaining}</h3> */}
-                  
-                  <form onSubmit={this.mySubmitHandler} autoComplete="off">
-                    <FormControl className={clsx(classes.margin, classes.withoutLabel, classes.textField)}>
-                      <Input
+                          <span className="lefttext">{this.state.left}</span>
+                          <h3>Auction Phase: {this.state.phase}</h3>
+                          <h3>Estimated Current Price: {this.state.currentPrice}</h3>
+                          {/* <h3>Tokens Remaining: {this.state.tokenRemaining}</h3> */}
 
-                        required
-                        type='number'
-                        onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
-                        endAdornment={<InputAdornment position="end">ETH</InputAdornment>}
-                      />
-                    </FormControl>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                    >Submit</Button>
-                  </form>
+                          <form onSubmit={this.mySubmitHandler} autoComplete="off">
+                            <FormControl className={clsx(classes.margin, classes.withoutLabel, classes.textField)}>
+                              <Input
+
+                                required
+                                type='number'
+                                onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
+                                endAdornment={<InputAdornment position="end">ETH</InputAdornment>}
+                              />
+                            </FormControl>
+                            <Button
+                              type="submit"
+                              variant="contained"
+                              color="primary"
+                            >Submit</Button>
+                          </form>
+
+                        </Grid>
+                      </Grid>
+                    </Grid>
+                  </Grid>
                 </Paper>
               </Grid>
               <Grid item xs={12} md={4} lg={3}>
-              <Paper className={fixedHeightPaper}>
-                <h3>Your Current Commitment: {this.state.currentCommitment} Wei</h3>
-                <Button onClick={this.handleTokenRelease}>Release Tokens</Button>
-              </Paper>
+                <Paper className={classes.paper}>
+                  <h3>Your Current Commitment: {this.state.currentCommitment} Wei</h3>
+                  <Button variant="contained"
+                    color="primary" onClick={this.handleTokenRelease}>Release Tokens</Button>
+                </Paper>
               </Grid>
             </Grid>
 
