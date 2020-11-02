@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract Auction is AccessControl {
     using SafeMath for uint256;
-    // if one address buy many times??
-    // mapping (address => uint) private commitments;
+
     struct commitment {
         address bidder;
         uint256 amount;
@@ -17,6 +16,7 @@ contract Auction is AccessControl {
     mapping(address => uint256) bidderToAmount;
 
     enum State {CREATED, OPENED, CLOSED, RELEASED}
+
     // total Ether stored
     uint256 public totalEther;
     uint256 public startPrice;
@@ -25,22 +25,24 @@ contract Auction is AccessControl {
     // total Supply of tokens
     uint256 public tokenSupply;
     uint256 public startTime;
-    uint256 public curPrice;
-    // uint256 demand;
+    uint256 public timeLimit;
+    uint256 public constant MULTIPLIER = 10**12;
 
     CypherpunkCoin private token;
     State public currState;
-    uint256 public constant timeLimit = 10 minutes;
 
     constructor(
         uint256 _startPrice,
         uint256 _reservedPrice,
         uint256 _tokenSupply,
+        uint256 _timeLimit,
         CypherpunkCoin _token
     ) public {
         startPrice = _startPrice;
         reservedPrice = _reservedPrice;
         tokenSupply = _tokenSupply;
+        // conver from minutes to seconds
+        timeLimit = _timeLimit * 60;
         token = _token;
         currState = State.CREATED;
     }
@@ -56,8 +58,8 @@ contract Auction is AccessControl {
         if (now.sub(startTime) > timeLimit) {
             // in case the number of ethers staked already makes the demand exceed supply
             // when price decreases
-            if (totalEther > tokenSupply.mul(reservedPrice * 10000000000000)) {
-                clearingPrice = totalEther.div(tokenSupply).div(10000000000000);
+            if (totalEther > tokenSupply.mul(reservedPrice * MULTIPLIER)) {
+                clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
             currState = State.CLOSED;
             // send back money to bidder
@@ -67,7 +69,7 @@ contract Auction is AccessControl {
             return;
         }
         // calculate the current price at this time
-        curPrice = (startTime.add(timeLimit).sub(now))
+        uint256 curPrice = (startTime.add(timeLimit).sub(now))
             .mul(1000)
             .div(timeLimit)
             .mul(startPrice.sub(reservedPrice))
@@ -75,8 +77,8 @@ contract Auction is AccessControl {
             .add(reservedPrice);
         // in case the existing number of ethers comitted already makes the demand exceed supply
         // when price decreases
-        if (totalEther >= tokenSupply.mul(curPrice * 10000000000000)) {
-            clearingPrice = totalEther.div(tokenSupply).div(10000000000000);
+        if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER)) {
+            clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             currState = State.CLOSED;
             msg.sender.transfer(msg.value);
             emit changeState(currState);
@@ -89,7 +91,7 @@ contract Auction is AccessControl {
         bidderToAmount[msg.sender] = bidderToAmount[msg.sender].add(msg.value);
         emit newCommit(totalEther);
         // to check whether the demand is larger than supply
-        if (totalEther >= tokenSupply.mul(curPrice * 10000000000000)) {
+        if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER)) {
             clearingPrice = curPrice;
             currState = State.CLOSED;
             emit changeState(currState);
@@ -105,7 +107,7 @@ contract Auction is AccessControl {
         if (currState == State.OPENED) {
             // determine the exact clearing price
             if (now.sub(startTime) < timeLimit) {
-                curPrice = (startTime.add(timeLimit).sub(now))
+                uint256 curPrice = (startTime.add(timeLimit).sub(now))
                     .mul(1000)
                     .div(timeLimit)
                     .mul(startPrice.sub(reservedPrice))
@@ -113,18 +115,12 @@ contract Auction is AccessControl {
                     .add(reservedPrice);
                 // in case the existing number of ethers comitted already makes the demand exceed supply
                 // when price decreases
-                if (totalEther >= tokenSupply.mul(curPrice * 10000000000000))
-                    clearingPrice = totalEther.div(tokenSupply).div(
-                        10000000000000
-                    );
+                if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER))
+                    clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
                 else revert("The auction is still opened, please wait");
             } else {
-                if (
-                    totalEther > tokenSupply.mul(reservedPrice * 10000000000000)
-                )
-                    clearingPrice = totalEther.div(tokenSupply).div(
-                        10000000000000
-                    );
+                if (totalEther > tokenSupply.mul(reservedPrice * MULTIPLIER))
+                    clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
                 else clearingPrice = reservedPrice;
             }
             currState = State.CLOSED;
@@ -141,7 +137,7 @@ contract Auction is AccessControl {
             // if (remainingToken == 0) break;
             // token to transfer to the bidder
             uint256 tokenTransfer = commitments[i].amount.div(
-                clearingPrice * 10000000000000
+                clearingPrice * MULTIPLIER
             );
             if (tokenTransfer > remainingToken) {
                 //send back redundant ether
@@ -150,7 +146,7 @@ contract Auction is AccessControl {
                 );
                 tokenTransfer = remainingToken;
                 uint256 ethSendToPayableLastBidder = commitments[i].amount.sub(
-                    tokenTransfer.mul(clearingPrice * 10000000000000)
+                    tokenTransfer.mul(clearingPrice * MULTIPLIER)
                 );
                 payableLastBidder.transfer(ethSendToPayableLastBidder);
                 ethSendToTokenContract = ethSendToTokenContract.sub(
