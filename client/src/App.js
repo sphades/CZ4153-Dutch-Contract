@@ -107,7 +107,7 @@ class App extends Component {
         this.updateTime();
       }, 1000);
       this.setState({ intervalId: intervalId })
-      this.listenToState(0)
+      
     } catch (error) {
       // Catch any errors for any of the above operations.
       alert(
@@ -164,7 +164,7 @@ class App extends Component {
       const { auctionContract, accounts } = this.state;
       if (auctionContract != null) {
         const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
-        const s  = await auctionContract.methods.currState().call();
+        const s  = Number(await auctionContract.methods.currState().call());
         console.log(s)
         var phase;
     switch (s) {
@@ -177,7 +177,7 @@ class App extends Component {
       case 3:
         phase = 'Tokens Released'; break;
       default:
-        phase = 'Created';
+        phase = 'default';
     }
         this.setState({
           currentCommitment: currentCommitment,
@@ -228,13 +228,14 @@ class App extends Component {
         Auction.abi,
         auctionAddress
       );
-
+      
       this.loadData();
       var startTime = Number(await auction.methods.startTime().call());
       var timeLimit = Number(await auction.methods.timeLimit().call());
       const startPrice = await auction.methods.startPrice().call();
       const reservedPrice = await auction.methods.reservedPrice().call();
       var endTime = timeLimit + startTime
+      this.listenToState(0)
       //await this.listenToState(0);
       this.setState({ auctionContract: auction, endTime: endTime });
     } catch (error) {
