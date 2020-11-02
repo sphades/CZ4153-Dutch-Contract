@@ -88,7 +88,7 @@ contract Auction is AccessControl {
     }
 
     function closeAuction() public {
-        require(currState != State.CLOSED);
+        require(currState != State.CLOSED, "The contract already closed");
         if (now.sub(startTime) > timeLimit) {
             currState = State.CLOSED;
             //in case the number of ethers staked already makes the demand exceed supply
@@ -97,7 +97,6 @@ contract Auction is AccessControl {
                 clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
             currState = State.CLOSED;
-            // send back money to bidder
             emit changeState(currState);
             return;
         }
@@ -107,11 +106,13 @@ contract Auction is AccessControl {
             .mul(startPrice.sub(reservedPrice))
             .div(1000)
             .add(reservedPrice);
-        if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER)) {
-            clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
-            currState = State.CLOSED;
-            emit changeState(currState);
-        }
+        require(
+            totalEther >= tokenSupply.mul(curPrice * MULTIPLIER),
+            "Not the right time to close"
+        );
+        clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
+        currState = State.CLOSED;
+        emit changeState(currState);
     }
 
     // Anyone can trigger the release as long as it satisfies the requirements
