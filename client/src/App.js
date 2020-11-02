@@ -89,8 +89,7 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: 0, currentPrice: 0, phase: '', currentCommitment: 0, endTime: 1200000, left: "calculating...",
-      isPositive: false
+      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...,' ,phase: '', currentCommitment: 0, endTime: 1200000, left: 'calculating...,', isPositive: false, demand: 'calculating...,'
     };
   }
   componentDidMount = async () => {
@@ -279,9 +278,10 @@ class App extends Component {
       var startTime = Number(await auction.methods.startTime().call());
       var timeLimit = Number(await auction.methods.timeLimit().call());
       var endTime = timeLimit + startTime
-      var priceDiff = (startPrice-reservedPrice)/timeLimit;
+      var priceDiff = (reservedPrice-startPrice)/timeLimit;
+      var totalEther = Number(await auction.methods.totalEther().call());
       this.setState(this.listenToState(0))
-      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff });
+      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff, startPrice:startPrice, timeLimit:timeLimit, totalEther:totalEther });
     } catch (error) {
       alert(
         `Failed to connect to auction. Check console for details.`,
@@ -312,27 +312,32 @@ class App extends Component {
   }
 
   updateTime() {
-    const {priceDiff} = this.state;
-    let left = this.state.endTime * 1000 - new Date();
+    const {priceDiff, startPrice,endTime,timeLimit,totalEther} = this.state;
+    let left = endTime * 1000 - new Date();
     let isPositive = left > 0
     if (this.state.isPositive && !isPositive && localStorage.getItem("webNotify") === "true") {
       this.webNotify()
     }
-
+    
+   
     let text = this.getTimedeltaText(left)
     if (text !== "") {
       if (isPositive) {
         text += " left"
+        var currentPrice = (timeLimit-left)*priceDiff+startPrice;
       } else {
-        text += " since expiration"
+        text += " since auction ended"
+        var currentPrice = (timeLimit)*priceDiff+startPrice;
       }
     }
-    var currentPrice = 1;
+    var demand = totalEther/currentPrice
+    
     this.setState(
       {
         left: text,
         isPositive: isPositive,
-        currentPrice:currentPrice
+        currentPrice: currentPrice,
+        demand:demand
       }
     )
   }
@@ -391,15 +396,17 @@ class App extends Component {
                           <span className="lefttext">{this.state.left}</span>
                           <h3>Auction Phase: {this.state.phase}</h3>
                           <h3>Estimated Current Price: {this.state.currentPrice}</h3>
+                          <h3>Current Demand: {this.state.demand}</h3>
                           {/* <h3>Tokens Remaining: {this.state.tokenRemaining}</h3> */}
 
                           <form onSubmit={this.mySubmitHandler} autoComplete="off">
                             <FormControl className={clsx(classes.margin, classes.withoutLabel, classes.textField)}>
                               <Input
-
                                 required
+                                margin='dense'
+                                step={0.0000000001}
                                 type='number'
-                                onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
+                                //onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
                                 endAdornment={<InputAdornment position="end">ETH</InputAdornment>}
                               />
                             </FormControl>
@@ -409,7 +416,6 @@ class App extends Component {
                               color="primary"
                             >Submit</Button>
                           </form>
-
                         </Grid>
                       </Grid>
                     </Grid>
