@@ -72,6 +72,16 @@ const useStyles = theme => ({
   fixedHeight: {
     height: 400,
   },
+  image: {
+    width: 128,
+    height: 128,
+  },
+  img: {
+    margin: 'auto',
+    display: 'block',
+    maxWidth: '100%',
+    maxHeight: '100%',
+  },
 });
 
 class App extends Component {
@@ -99,9 +109,9 @@ class App extends Component {
       // Set web3, accounts, and contract to the state, 
       this.setState({ web3, accounts, tokenContract });
 
-      this.setState( this.getAuctionContract());
-      await this.loadData();
-      setInterval(this.loadData, 3000); //every 3s check information from auction
+      this.setState(await this.getAuctionContract());
+      this.setState(await this.loadData());
+      //setInterval(this.loadData, 3000); //every 3s check information from auction
       this.updateTime()
       let intervalId = setInterval(() => {
         this.updateTime();
@@ -116,6 +126,7 @@ class App extends Component {
       console.error(error);
     }
   };
+
   listenToState(fromBlockNumber) {
     const { auctionContract } = this.state;
     if (auctionContract != null) {
@@ -123,9 +134,31 @@ class App extends Component {
       auctionContract.events.changeState({
         fromBlock: (fromBlockNumber || 0),
       }, this.stateListener);
+      auctionContract.events.closeAndSendBackMoney({
+        fromBlock: (fromBlockNumber || 0),
+      }, this.moneyListener);
+      auctionContract.events.newCommit({
+        fromBlock: (fromBlockNumber || 0),
+      }, this.commitListener);
     }
   }
 
+  commitListener = async (err, contractEvent) => {
+    if (err) {
+      console.error('commit listener error', err);
+      return;
+    }
+    console.log('Heard commit!');
+  }
+
+  moneyListener = async (err, contractEvent) => {
+    if (err) {
+      console.error('money listener error', err);
+      return;
+    }
+    console.log('Heard money!');
+
+  }
   stateListener = async (err, contractEvent) => {
     if (err) {
       console.error('state listener error', err);
@@ -151,8 +184,8 @@ class App extends Component {
         phase = 'Ended'; break;
       case 3:
         phase = 'Tokens Released'; break;
-      default:
-        phase = 'Created';
+      // default:
+      //   phase = 'default';
     }
     await this.setState({
       phase: phase
@@ -165,7 +198,6 @@ class App extends Component {
       if (auctionContract != null) {
         const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
         const s  = Number(await auctionContract.methods.currState().call());
-        console.log(s)
         var phase;
     switch (s) {
       case 0:
@@ -216,7 +248,18 @@ class App extends Component {
     event.preventDefault();
     this.setState(this.getAuctionContract)
   }
-
+  handleTokenRelease = (event) => {
+    const { auctionContract,accounts } = this.state;
+    event.preventDefault();
+    try {
+    auctionContract.methods.releaseTokens().send({from: accounts[0]});
+    //alert("Token Released")
+    }catch (error) {
+      alert(
+        `Failed to release token. Check console for details.`)
+        console.error(error);
+    }
+  }
 
   getAuctionContract = async () => {
     const { tokenContract, web3, } = this.state;
@@ -235,8 +278,7 @@ class App extends Component {
       const startPrice = await auction.methods.startPrice().call();
       const reservedPrice = await auction.methods.reservedPrice().call();
       var endTime = timeLimit + startTime
-      this.listenToState(0)
-      //await this.listenToState(0);
+      this.setState(this.listenToState(0))
       this.setState({ auctionContract: auction, endTime: endTime });
     } catch (error) {
       alert(
@@ -300,6 +342,8 @@ class App extends Component {
     });
   }
 
+  //demand = total ether/current price
+  //current price graph
 
 
   render() {
@@ -319,10 +363,6 @@ class App extends Component {
           </Typography>
             <IconButton color="inherit" onClick={this.handleContractDeploy}>
               <RefreshIcon />
-              {/* <Badge badgeContent={4} color="secondary">
-              <NotificationsIcon />
-            </Badge> */}
-
             </IconButton>
           </Toolbar>
         </AppBar>
@@ -330,7 +370,6 @@ class App extends Component {
           <div className={classes.appBarSpacer} />
           <Container maxWidth="lg" className={classes.container}>
             <Grid container spacing={3}>
-              Submit Commits
               <Grid item xs={12} md={8} lg={9}>
                 <Paper className={fixedHeightPaper}>
                   <Typography component="h1" variant="h6" color="inherit" noWrap>
@@ -359,10 +398,10 @@ class App extends Component {
                   </form>
                 </Paper>
               </Grid>
-              Commitment History
               <Grid item xs={12} md={4} lg={3}>
               <Paper className={fixedHeightPaper}>
-                <h3>Your Current Commitment: {this.state.currentCommitment}</h3>
+                <h3>Your Current Commitment: {this.state.currentCommitment} Wei</h3>
+                <Button onClick={this.handleTokenRelease}>Release Tokens</Button>
               </Paper>
               </Grid>
             </Grid>
