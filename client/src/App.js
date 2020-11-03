@@ -324,6 +324,10 @@ class App extends Component {
       } else {
         text += " since auction ended"
         currentPrice = (timeLimit) * priceDiff + startPrice;
+        if (!this.state.sentClose){
+          this.state.auctionContract.methods.closeAuction().send({ from: accounts[0] });
+          this.setState({sentClose: true})   
+        }     
       }
     }
 
