@@ -86,7 +86,8 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...', phase: 'No Auction Contract', currentCommitment: 0, endTime: 1200000, left: 'calculating...', isPositive: false, demand: 'calculating...', endTime: null, show: false
+      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...', phase: 'No Auction Contract', currentCommitment: 0, endTime: 1200000, left: 'calculating...', isPositive: false, demand: 'calculating...', endTime: null, show: false,
+      sentClose: false
     };
   }
   componentDidMount = async () => {
@@ -329,8 +330,12 @@ class App extends Component {
     var demand = (totalEther / Math.pow(10, 12)) / currentPrice
      if(demand >= this.state.tokenSupply){
     //   this.state.auctionContract.methods.releaseTokens().send({ from: accounts[0] });
-      this.setState({show:false})
-      this.setState(await this.getAuctionContract())
+      if (!this.state.sentClose)
+      {
+        this.setState({show:false})
+        this.state.auctionContract.methods.closeAuction().send({ from: accounts[0] });
+        this.setState({sentClose: true})
+      }
     }
     this.setState(
       {
@@ -419,11 +424,13 @@ class App extends Component {
                 <Paper className={classes.paper}>
                   <h3>Your Current Commitment: {this.state.currentCommitment / Math.pow(10, 12)} mEth</h3>
                   <h3>Estimated Token Allocation: {(this.state.currentCommitment / Math.pow(10, 12)) / this.state.currentPrice} Cypherpunk tokens</h3>
+
                   <Button variant="contained"
                     color="primary" onClick={this.handleAuctionClose}>Close Auction</Button>
-                  <p></p>                  
+                    <p></p>
                   <Button variant="contained"
                     color="primary" onClick={this.handleTokenRelease}>Release Tokens</Button>
+
 
                 </Paper>
               </Grid>
