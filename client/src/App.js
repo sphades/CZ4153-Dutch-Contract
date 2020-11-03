@@ -15,16 +15,14 @@ import Toolbar from '@material-ui/core/Toolbar';
 import clsx from 'clsx';
 import RefreshIcon from '@material-ui/icons/Refresh';
 import IconButton from '@material-ui/core/IconButton';
-import { FormControl, Input, InputAdornment, Button, ButtonBase } from '@material-ui/core';
+import { FormControl, Button, ButtonBase, TextField } from '@material-ui/core';
 import pic from './images/Dutch-Auction-small.jpg'
 
 const useStyles = theme => ({
   root: {
     display: 'flex',
   },
-  // toolbar: {
-  //   paddingRight: 24, // keep right padding when drawer closed
-  // },
+
   toolbarIcon: {
     display: 'flex',
     alignItems: 'center',
@@ -33,7 +31,6 @@ const useStyles = theme => ({
     ...theme.mixins.toolbar,
   },
   appBar: {
-    // zIndex: theme.zIndex.drawer + 1,
     transition: theme.transitions.create(['width', 'margin'], {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
@@ -89,8 +86,7 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: 0, currentPrice: 0, phase: '', currentCommitment: 0, endTime: 1200000, left: "calculating...",
-      isPositive: false
+      web3: null, accounts: null, auctionContract: null, tokenContract: null, tokenPurchase: '', currentPrice: 'calculating...', phase: 'No Auction Contract', currentCommitment: 0, endTime: 1200000, left: 'calculating...', isPositive: false, demand: 'calculating...', endTime: null, show: false
     };
   }
   componentDidMount = async () => {
@@ -112,10 +108,10 @@ class App extends Component {
 
       this.setState(await this.getAuctionContract());
       this.setState(await this.loadData());
-      //setInterval(this.loadData, 3000); //every 3s check information from auction
       this.updateTime()
       let intervalId = setInterval(() => {
         this.updateTime();
+        this.loadData()
       }, 1000);
       this.setState({ intervalId: intervalId })
 
@@ -128,94 +124,73 @@ class App extends Component {
     }
   };
 
-  listenToState(fromBlockNumber) {
-    const { auctionContract } = this.state;
-    if (auctionContract != null) {
-      console.log('Listening for State change');
-      auctionContract.events.changeState({
-        fromBlock: (fromBlockNumber || 0),
-      }, this.stateListener);
-      auctionContract.events.closeAndSendBackMoney({
-        fromBlock: (fromBlockNumber || 0),
-      }, this.moneyListener);
-      auctionContract.events.newCommit({
-        fromBlock: (fromBlockNumber || 0),
-      }, this.commitListener);
-    }
-  }
-
   commitListener = async (err, contractEvent) => {
+    const { prevNum } = this.state
     if (err) {
       console.error('commit listener error', err);
       return;
     }
     console.log('Heard commit!');
-  }
-
-  moneyListener = async (err, contractEvent) => {
-    if (err) {
-      console.error('money listener error', err);
-      return;
-    }
-    console.log('Heard money!');
-
-  }
-  stateListener = async (err, contractEvent) => {
-    if (err) {
-      console.error('state listener error', err);
-      return;
-    }
-    console.log('Heard something!');
     const {
       event,
       returnValues,
       blockNumber,
     } = contractEvent;
     const {
-      s
+      tEther
     } = returnValues;
-    console.log(`${event}: State changed to ${s} (block #${blockNumber})`)
-    var phase;
-    switch (s) {
-      case 0:
-        phase = 'Created'; break;
-      case 1:
-        phase = 'Ongoing'; break;
-      case 2:
-        phase = 'Ended'; break;
-      case 3:
-        phase = 'Tokens Released'; break;
-      // default:
-      //   phase = 'default';
+    if (prevNum !== blockNumber) {
+      // console.log(`${event}: Commit suceeded (block #${blockNumber}), ${tEther} transferred`)
+      // alert('Accepted transaction')
+      // tokenSupply = tEther;
+      this.setState({ prevNum: blockNumber, totalEther: tEther})
     }
-    await this.setState({
-      phase: phase
-    });
   }
+
+  // moneyListener = async (err, contractEvent) => {
+  //   const { prevNum } = this.state
+  //   if (err) {
+  //     console.error('money listener error', err);
+  //     return;
+  //   }
+  //   console.log('Heard money!');
+  //   const {
+  //     event,
+  //     blockNumber,
+  //   } = contractEvent;
+  //   if (prevNum !== blockNumber) {
+  //     console.log(`${event}: Money changed (block #${blockNumber})`)
+  //     alert('Rejected transaction')
+  //     this.setState({ prevNum: blockNumber, })
+  //   }
+  // }
+
 
   loadData = async () => {
     try {
-      const { auctionContract, accounts,timeLimit } = this.state;
+      const { auctionContract, accounts } = this.state;
       if (auctionContract != null) {
         const currentCommitment = await auctionContract.methods.getCommitments(accounts[0]).call();
         const s = Number(await auctionContract.methods.currState().call());
-        
+
         var phase;
+        var show;
         switch (s) {
           case 0:
-            phase = 'Created'; break;
+            phase = 'Created'; show = false; break;
           case 1:
-            phase = 'Ongoing'; break;
+            phase = 'Ongoing'; show = true; this.setState(this.getAuctionContract);break;
           case 2:
-            phase = 'Ended'; break;
+            phase = 'Ended'; show = false; break;
           case 3:
-            phase = 'Tokens Released'; break;
+            phase = 'Tokens Released'; show = false; break;
           default:
             phase = 'Auction has not started';
         }
         this.setState({
           currentCommitment: currentCommitment,
-          phase: phase
+          phase: phase,
+          show: show
         })
       }
 
@@ -226,9 +201,15 @@ class App extends Component {
 
   runCommit = async () => {
     try {
-      const { accounts, auctionContract, tokenPurchase } = this.state;
-      // call commit() somewhere here
-      await auctionContract.methods.commit().send({ from: accounts[0], value: Math.pow(10, 18) * tokenPurchase });
+      const { web3, accounts, auctionContract, tokenPurchase } = this.state;
+      var blocknumber = Number(await web3.eth.getBlockNumber()) + 1;
+      await auctionContract.methods.commit().send({ from: accounts[0], value: Math.pow(10, 18) * tokenPurchase }); //send in wei
+      // await auctionContract.events.closeAndSendBackMoney({
+      //   fromBlock: (blocknumber),
+      // }, this.moneyListener);
+      await auctionContract.events.newCommit({
+        fromBlock: (blocknumber),
+      }, this.commitListener);
     }
     catch (error) {
       alert(error)
@@ -263,6 +244,19 @@ class App extends Component {
     }
   }
 
+  handleAuctionClose = (event) => {
+    const { auctionContract, accounts } = this.state;
+    event.preventDefault();
+    try {
+      auctionContract.methods.closeAuction().send({ from: accounts[0] });
+      //alert("Token Released")
+    } catch (error) {
+      alert(
+        `Failed to release token. Check console for details.`)
+      console.error(error);
+    }
+  }
+
   getAuctionContract = async () => {
     const { tokenContract, web3, } = this.state;
     console.log("connecting to auction");
@@ -273,15 +267,16 @@ class App extends Component {
         Auction.abi,
         auctionAddress
       );
-      const startPrice = Number(await auction.methods.startPrice().call());
-      const reservedPrice = Number(await auction.methods.reservedPrice().call());
+      const startPrice = Number(await auction.methods.startPrice().call()); //what unit? microether
+      const reservedPrice = Number(await auction.methods.reservedPrice().call()); //what unit? microether
       this.loadData();
       var startTime = Number(await auction.methods.startTime().call());
       var timeLimit = Number(await auction.methods.timeLimit().call());
       var endTime = timeLimit + startTime
-      var priceDiff = (startPrice-reservedPrice)/timeLimit;
-      this.setState(this.listenToState(0))
-      this.setState({ auctionContract: auction, endTime: endTime, priceDiff:priceDiff });
+      var priceDiff = (reservedPrice - startPrice) / timeLimit;
+      var totalEther = Number(await auction.methods.totalEther().call());
+      var tokenSupply = Number(await auction.methods.tokenSupply().call());
+      this.setState({ auctionContract: auction, endTime: endTime, priceDiff: priceDiff, startPrice: startPrice, timeLimit: timeLimit, totalEther: totalEther, tokenSupply: tokenSupply});
     } catch (error) {
       alert(
         `Failed to connect to auction. Check console for details.`,
@@ -311,52 +306,52 @@ class App extends Component {
     return text
   }
 
-  updateTime() {
-    const {priceDiff} = this.state;
-    let left = this.state.endTime * 1000 - new Date();
+  updateTime = async () => {
+    const { priceDiff, startPrice, endTime, timeLimit, totalEther, phase, accounts, show} = this.state;
+    let left = endTime * 1000 - new Date();
     let isPositive = left > 0
-    if (this.state.isPositive && !isPositive && localStorage.getItem("webNotify") === "true") {
-      this.webNotify()
-    }
-
+    if (show){
     let text = this.getTimedeltaText(left)
+    var currentPrice;
     if (text !== "") {
       if (isPositive) {
         text += " left"
+        if (phase == 'Ongoing') {
+          currentPrice = (timeLimit - left / 1000) * priceDiff + startPrice;
+        }
+
       } else {
-        text += " since expiration"
+        text += " since auction ended"
+        currentPrice = (timeLimit) * priceDiff + startPrice;
       }
     }
-    var currentPrice = 1;
+
+    var demand = (totalEther / Math.pow(10, 12)) / currentPrice
+     if(demand >= this.state.tokenSupply){
+    //   this.state.auctionContract.methods.releaseTokens().send({ from: accounts[0] });
+      this.setState({show:false})
+      this.setState(await this.getAuctionContract())
+    }
     this.setState(
       {
         left: text,
         isPositive: isPositive,
-        currentPrice:currentPrice
+        currentPrice: currentPrice,
+        demand: demand
       }
     )
+    }
   }
-
-  webNotify() {
-    //let title = this.props.card.title
-    Notification.requestPermission(function (result) { //change this to modal popup?
-      if (result === "granted") {
-        new Notification("Auction has expired!");
-      }
-    });
-  }
-
-  //demand = total ether/current price
-  //current price graph
-
 
   render() {
     const { classes } = this.props;
-    const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
+    const inputProps = {
+      step: 0.01,
+    };
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
-    return ( //admin page to start contract: start price, reserve price text box
+    return ( 
 
       <div className={classes.root}>
         <CssBaseline />
@@ -385,31 +380,35 @@ class App extends Component {
                     <Grid item xs={12} sm container>
                       <Grid item xs container direction="column" spacing={2}>
                         <Grid item xs>
-                          <Typography component="h1" variant="h6" color="inherit" noWrap>
-                            Time Remaining:
-                    </Typography>
-                          <span className="lefttext">{this.state.left}</span>
+                          {this.state.show ?
+                            <Typography component="h1" variant="h6" color="inherit" noWrap>
+                              Time Remaining:
+                    </Typography> : null}
+                          {this.state.show ? <span className="lefttext">{this.state.left}</span> : null}
                           <h3>Auction Phase: {this.state.phase}</h3>
-                          <h3>Estimated Current Price: {this.state.currentPrice}</h3>
-                          {/* <h3>Tokens Remaining: {this.state.tokenRemaining}</h3> */}
+                          <h3>Total Supply: {this.state.tokenSupply}</h3>
+                          <h3>Estimated Current Price: {this.state.currentPrice} mEth</h3>
+                          <h3>Current Demand: {this.state.demand} tokens</h3>
 
                           <form onSubmit={this.mySubmitHandler} autoComplete="off">
                             <FormControl className={clsx(classes.margin, classes.withoutLabel, classes.textField)}>
-                              <Input
 
+                              <TextField
                                 required
+                                margin='dense'
+                                inputProps={inputProps}
                                 type='number'
-                                onChange={event => this.setState({ tokenPurchase: event.target.value.replace(/\D/, '') })}
-                                endAdornment={<InputAdornment position="end">ETH</InputAdornment>}
+                                onChange={event => this.setState({ tokenPurchase: parseFloat(event.target.value) })}
+                                helperText="in ETH"
                               />
+                              {this.state.show ?
+                                <Button
+                                  type="submit"
+                                  variant="contained"
+                                  color="primary"
+                                >Submit</Button> : <Button variant="contained" disabled>Submit</Button>}
                             </FormControl>
-                            <Button
-                              type="submit"
-                              variant="contained"
-                              color="primary"
-                            >Submit</Button>
                           </form>
-
                         </Grid>
                       </Grid>
                     </Grid>
@@ -418,9 +417,14 @@ class App extends Component {
               </Grid>
               <Grid item xs={12} md={4} lg={3}>
                 <Paper className={classes.paper}>
-                  <h3>Your Current Commitment: {this.state.currentCommitment} Wei</h3>
+                  <h3>Your Current Commitment: {this.state.currentCommitment / Math.pow(10, 12)} mEth</h3>
+                  <h3>Estimated Token Allocation: {(this.state.currentCommitment / Math.pow(10, 12)) / this.state.currentPrice} Cypherpunk tokens</h3>
+                  <Button variant="contained"
+                    color="primary" onClick={this.handleAuctionClose}>Close Auction</Button>
+                  <p></p>                  
                   <Button variant="contained"
                     color="primary" onClick={this.handleTokenRelease}>Release Tokens</Button>
+
                 </Paper>
               </Grid>
             </Grid>
@@ -428,11 +432,10 @@ class App extends Component {
           </Container>
         </main>
 
-        {/* <div>Total Cost: {this.state.tokenPurchase * this.state.currentPrice}</div> */}
       </div>
     );
   }
 }
 
 export default withStyles(useStyles)(App);
-//max={this.state.tokenRemaining*this.state.currentPrice}
+

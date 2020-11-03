@@ -47,18 +47,23 @@ contract Auction is AccessControl {
         currState = State.CREATED;
     }
 
+    function openAuction() external {
+        require(
+            msg.sender == address(token),
+            "Only the token contract can open the auction"
+        );
+        require(currState == State.CREATED, "The auction is already opened");
+        startTime = now;
+        currState = State.OPENED;
+        emit changeState(currState);
+    }
+
     function commit() external payable {
-        // Auction already closes or does not open yet, send back the money to user
-        // if (currState != State.OPENED) {
-        //     msg.sender.transfer(msg.value);
-        //     emit closeAndSendBackMoney(msg.sender);
-        //     return;
-        // }
         require(
             currState == State.OPENED,
             "The contract closed or have not opened yet"
         );
-        // if the time is over but auction does not close, close it at the exact clearing price
+        // check whether the time is over
         require(now.sub(startTime) < timeLimit, "The contract is over ");
 
         // calculate the current price at this time
@@ -68,11 +73,10 @@ contract Auction is AccessControl {
             .mul(startPrice.sub(reservedPrice))
             .div(1000)
             .add(reservedPrice);
-        // in case the existing number of ethers comitted already makes the demand exceed supply
-        // when price decreases
+        // check whether the total Demand already exceeds supply
         require(
             totalEther < tokenSupply.mul(curPrice * MULTIPLIER),
-            "The contract already closed"
+            "The demand is larger than supply, the contract should close now"
         );
 
         totalEther = totalEther.add(msg.value);
@@ -88,31 +92,32 @@ contract Auction is AccessControl {
     }
 
     function closeAuction() public {
-        require(currState != State.CLOSED, "The contract already closed");
+        require(currState == State.OPENED, "The contract already closed");
         if (now.sub(startTime) > timeLimit) {
-            currState = State.CLOSED;
             //in case the number of ethers staked already makes the demand exceed supply
             // when price decreases
+            currState = State.CLOSED;
+            emit changeState(currState);
             if (totalEther > tokenSupply.mul(reservedPrice * MULTIPLIER)) {
                 clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
+        } else {
+            uint256 curPrice = (startTime.add(timeLimit).sub(now))
+                .mul(1000)
+                .div(timeLimit)
+                .mul(startPrice.sub(reservedPrice))
+                .div(1000)
+                .add(reservedPrice);
+            // In case the number of ethers staked already makes the demand exceed supply
+            // when price decreases
+            require(
+                totalEther >= tokenSupply.mul(curPrice * MULTIPLIER),
+                "Not the right time to close"
+            );
             currState = State.CLOSED;
             emit changeState(currState);
-            return;
+            clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
         }
-        uint256 curPrice = (startTime.add(timeLimit).sub(now))
-            .mul(1000)
-            .div(timeLimit)
-            .mul(startPrice.sub(reservedPrice))
-            .div(1000)
-            .add(reservedPrice);
-        require(
-            totalEther >= tokenSupply.mul(curPrice * MULTIPLIER),
-            "Not the right time to close"
-        );
-        clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
-        currState = State.CLOSED;
-        emit changeState(currState);
     }
 
     // Anyone can trigger the release as long as it satisfies the requirements
@@ -121,10 +126,11 @@ contract Auction is AccessControl {
             currState == State.CLOSED,
             "The auction already releases or not opened yet"
         );
+        currState = State.RELEASED;
+        emit changeState(currState);
         uint256 ethSendToTokenContract = totalEther;
         uint256 remainingToken = tokenSupply;
         for (uint256 i = 0; i < commitments.length; i++) {
-            // if (remainingToken == 0) break;
             // token to transfer to the bidder
             uint256 tokenTransfer = commitments[i].amount.div(
                 clearingPrice * MULTIPLIER
@@ -149,25 +155,12 @@ contract Auction is AccessControl {
         address payable payableTokenContract = address(uint160(address(token)));
         payableTokenContract.transfer(ethSendToTokenContract);
         if (remainingToken > 0) token.burn(remainingToken);
-        currState = State.RELEASED;
-        emit changeState(currState);
     }
 
     function getCommitments(address bidder) public view returns (uint256) {
         return bidderToAmount[bidder];
     }
 
-    function openAuction() external {
-        require(
-            msg.sender == address(token),
-            "Only the token contract can open the auction"
-        );
-        startTime = now;
-        currState = State.OPENED;
-        emit changeState(currState);
-    }
-
     event changeState(State s);
-    event closeAndSendBackMoney();
     event newCommit(uint256 tEther);
 }

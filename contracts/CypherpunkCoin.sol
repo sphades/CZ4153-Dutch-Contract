@@ -21,7 +21,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         //set up auction creator role
         _setupRole(AUCTION_CREATOR_ROLE, msg.sender);
         _mint(msg.sender, 1000);
-        _setupDecimals(1);
+        _setupDecimals(0);
     }
 
     address public auctionAddress;
