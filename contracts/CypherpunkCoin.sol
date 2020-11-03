@@ -1,12 +1,10 @@
 pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/GSN/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "./Auction.sol";
 
-contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
+contract CypherpunkCoin is AccessControl, ERC20Burnable {
     bytes32 public constant AUCTION_CREATOR_ROLE = keccak256(
         "AUCTION_CREATOR_ROLE"
     );
@@ -48,6 +46,7 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         auctionAddress = address(auction);
     }
 
+    // open the current auction
     function openCurrAuction() external {
         require(
             hasRole(AUCTION_CREATOR_ROLE, msg.sender),
@@ -56,5 +55,15 @@ contract CypherpunkCoin is Context, AccessControl, ERC20Burnable {
         Auction(auctionAddress).openAuction();
     }
 
+    // set up the role of auction creators for others
+    function setupAuctionCreatorRole(address creator) external {
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "This function can only be accessed by admin"
+        );
+        _setupRole(AUCTION_CREATOR_ROLE, creator);
+    }
+
+    // to receive money from others
     receive() external payable {}
 }
