@@ -1,8 +1,12 @@
 # CZ4153-Dutch-Contract
 
 To start: 
-truffle develop
+truffle migrate //compiles and deploy the cryptotoken contract
+truffle console 
+var c = await CypherpunkCoin.deployed() 
+c.createAuction(100, 10, 100) //creates auction contract
+c.openCurrAuction() // this starts the auction
 
-In another cmd prompt:
-cd client
-npm start
+new console
+cd client 
+npm start //start the dapp
