@@ -5,7 +5,7 @@ import "./CypherpunkCoin.sol";
 
 // import "./preventReentryTransfer";
 
-contract Auction {
+contract AuctionAgainsReentry {
     using SafeMath for uint256;
 
     struct commitment {
@@ -88,6 +88,9 @@ contract Auction {
         emit newCommit(totalEther);
         // to check whether the demand is larger than supply
         if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER)) {
+            // avoid the reentry attack by paying the last bidder or not at the commitment stage
+            // if it fails, then the commitment is failed and this
+            // does not affect other bidders
             clearingPrice = curPrice;
             uint256 ethSendBack = totalEther.sub(
                 tokenSupply.mul(clearingPrice.mul(MULTIPLIER))
