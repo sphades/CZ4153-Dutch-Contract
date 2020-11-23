@@ -64,16 +64,16 @@ contract Auction is AccessControl {
             "The contract closed or have not opened yet"
         );
         // check whether the time is over
-        require(now.sub(startTime) < timeLimit, "The contract is over ");
+        require(now.sub(startTime) < timeLimit, "The time is over ");
 
-        // calculate the current price at this time
+        // calculate the current price at this time, we follow the linear model
         uint256 curPrice = (startTime.add(timeLimit).sub(now))
             .mul(1000)
             .div(timeLimit)
             .mul(startPrice.sub(reservedPrice))
             .div(1000)
             .add(reservedPrice);
-        // check whether the total Demand already exceeds supply
+        // check whether the total Demand already exceeds supply as price decreases over time
         require(
             totalEther < tokenSupply.mul(curPrice * MULTIPLIER),
             "The demand is larger than supply, the contract should close now"
@@ -124,7 +124,7 @@ contract Auction is AccessControl {
     function releaseTokens() external {
         require(
             currState == State.CLOSED,
-            "The auction already releases or not opened yet"
+            "The auction have to be in state closed to be released"
         );
         currState = State.RELEASED;
         emit changeState(currState);
@@ -136,7 +136,7 @@ contract Auction is AccessControl {
                 clearingPrice * MULTIPLIER
             );
             if (tokenTransfer > remainingToken) {
-                //send back redundant ether
+                //send back redundant ether to the last bidder
                 address payable payableLastBidder = address(
                     uint160(commitments[i].bidder)
                 );
@@ -152,8 +152,10 @@ contract Auction is AccessControl {
             } else remainingToken = remainingToken.sub(tokenTransfer);
             token.transfer(commitments[i].bidder, tokenTransfer);
         }
+        // send money to the CypherpunkCoin contract
         address payable payableTokenContract = address(uint160(address(token)));
         payableTokenContract.transfer(ethSendToTokenContract);
+        // burn the remaining tokens
         if (remainingToken > 0) token.burn(remainingToken);
     }
 
@@ -162,5 +164,6 @@ contract Auction is AccessControl {
     }
 
     event changeState(State s);
+    // event newCommit logging the total Ether up to now
     event newCommit(uint256 tEther);
 }
