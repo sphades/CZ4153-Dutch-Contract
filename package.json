@@ -1,0 +1,26 @@
+{
+  "name": "cz4153-dutch-contract",
+  "version": "1.0.0",
+  "description": "To start: \r truffle develop",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sphades/CZ4153-Dutch-Contract.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sphades/CZ4153-Dutch-Contract/issues"
+  },
+  "homepage": "https://github.com/sphades/CZ4153-Dutch-Contract#readme"
+}
