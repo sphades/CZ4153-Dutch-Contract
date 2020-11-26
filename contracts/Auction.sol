@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./CypherpunkCoin.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Auction is AccessControl {
+contract Auction1 is AccessControl {
     using SafeMath for uint256;
 
     struct commitment {
@@ -67,12 +67,15 @@ contract Auction is AccessControl {
         require(now.sub(startTime) < timeLimit, "The time is over ");
 
         // calculate the current price at this time, we follow the linear model
+        // curPrice = (startTime+timeLimit-now)/timeLimit*(startPrice-reservedPrice)
+        // + reservedPrice
         uint256 curPrice = (startTime.add(timeLimit).sub(now))
             .mul(1000)
             .div(timeLimit)
             .mul(startPrice.sub(reservedPrice))
             .div(1000)
             .add(reservedPrice);
+
         // check whether the total Demand already exceeds supply as price decreases over time
         require(
             totalEther < tokenSupply.mul(curPrice * MULTIPLIER),

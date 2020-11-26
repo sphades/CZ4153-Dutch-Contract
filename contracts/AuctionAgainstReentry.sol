@@ -5,7 +5,7 @@ import "./CypherpunkCoin.sol";
 
 // import "./preventReentryTransfer";
 
-contract AuctionAgainsReentry {
+contract Auction {
     using SafeMath for uint256;
 
     struct commitment {
@@ -28,6 +28,7 @@ contract AuctionAgainsReentry {
     uint256 public startTime;
     uint256 public timeLimit;
     uint256 public constant MULTIPLIER = 10**12;
+    uint256 public countBidder;
 
     CypherpunkCoin private token;
     State public currState;
@@ -82,15 +83,16 @@ contract AuctionAgainsReentry {
             "The demand is larger than supply, the contract should close now"
         );
 
+        if (bidderToAmount[msg.sender] == 0) countBidder++;
         totalEther = totalEther.add(msg.value);
         commitments.push(commitment(msg.sender, msg.value));
         bidderToAmount[msg.sender] = bidderToAmount[msg.sender].add(msg.value);
         emit newCommit(totalEther);
         // to check whether the demand is larger than supply
-        if (totalEther >= tokenSupply.mul(curPrice * MULTIPLIER)) {
-            // avoid the reentry attack by paying the last bidder or not at the commitment stage
-            // if it fails, then the commitment is failed and this
-            // does not affect other bidders
+        // avoid the reentry attack by paying the last bidder or not at the commitment stage
+        // if it fails, then the commitment is failed and this
+        // does not affect other bidders
+        if (totalEther >= tokenSupply.mul(curPrice.mul(MULTIPLIER))) {
             clearingPrice = curPrice;
             uint256 ethSendBack = totalEther.sub(
                 tokenSupply.mul(clearingPrice.mul(MULTIPLIER))
@@ -110,6 +112,10 @@ contract AuctionAgainsReentry {
                 currState = State.CLOSED;
                 emit changeState(currState);
             }
+            address payable payableTokenContract = address(
+                uint160(address(token))
+            );
+            payableTokenContract.transfer(ethSendToTokenContract);
         }
     }
 
@@ -119,8 +125,6 @@ contract AuctionAgainsReentry {
         if (now.sub(startTime) > timeLimit) {
             //in case the number of ethers staked already makes the demand exceed supply
             // when price decreases
-            currState = State.CLOSED;
-            emit changeState(currState);
             if (totalEther > tokenSupply.mul(reservedPrice * MULTIPLIER)) {
                 clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
@@ -137,33 +141,22 @@ contract AuctionAgainsReentry {
                 totalEther >= tokenSupply.mul(curPrice * MULTIPLIER),
                 "Not the right time to close"
             );
-            currState = State.CLOSED;
-            emit changeState(currState);
             clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
         }
+        currState = State.CLOSED;
+        address payable payableTokenContract = address(uint160(address(token)));
+        payableTokenContract.transfer(ethSendToTokenContract);
+        emit changeState(currState);
     }
 
-    // Anyone can trigger the release as long as contract state satisfies the requirements
-    function releaseTokens() public {
+    function claimTokens() external {
         require(
-            currState == State.CLOSED,
-            "The auction already releases or not opened yet"
+            bidderToAmount[msg.sender] > 0,
+            "You have not committed or have claimed your tokens already"
         );
-        currState = State.RELEASED;
-        emit changeState(currState);
-        uint256 remainingToken = tokenSupply;
-        for (uint256 i = 0; i < commitments.length; i++) {
-            // token to transfer to the bidder
-            uint256 tokenTransfer = commitments[i].amount.div(
-                clearingPrice.mul(MULTIPLIER)
-            );
-            remainingToken = tokenSupply.sub(tokenTransfer);
-            token.transfer(commitments[i].bidder, tokenTransfer);
-        }
-        // send money to the token contract
-        address payable payableTokenContract = address(uint160(address(token)));
-        payableTokenContract.transfer(totalEther);
-        if (remainingToken > 0) token.burn(remainingToken);
+        uint256 tokenToTransfer = bidderToAmount[msg.sender].div(clearingPrice);
+        token.transfer(msg.sender, tokenToTransfer);
+        bidderToAmount[msg.sender] = 0;
     }
 
     function getCommitments(address bidder) public view returns (uint256) {

