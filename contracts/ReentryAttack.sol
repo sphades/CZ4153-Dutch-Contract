@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-import "./Auction.sol";
+import "./AuctionAgainstReentry.sol";
 import "./CypherpunkCoin.sol";
 
 // auction.startPrice() * 10**12 * auction.tokenSupply()
@@ -43,7 +43,7 @@ contract ReentryAttack {
 // cypherPunk = await CypherpunkCoin.deployed()
 // cypherPunk.createAuction(3000,2000,200,5)
 // auctionAddress = await cypherPunk.auctionAddress()
-// attack = await ReentryAttack.new(auctionAddress,cypherPunk.address)
+// attack = await ReentryAttack.new(auctionAddress)
 // cypherPunk.openCurrAuction()
 // auction = await Auction.at(auctionAddress)
 // auction.commit({value: 100000000000000000, from:accounts[1]}) // send from accounts[1]

@@ -1,6 +1,6 @@
 const cypherpunkCoin = artifacts.require("CypherpunkCoin");
 // const Auction = artifacts.require("Auction.sol");;
-const Auction = artifacts.require("AuctionAgainstReentry.sol");
+// const Auction = artifacts.require("AuctionAgainstReentry");
 
 module.exports = (deployer,network,accounts) => {
   deployer.deploy(cypherpunkCoin, "Cypherpunk", "CY").then(async (cypherPunk)=>{

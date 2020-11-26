@@ -16,7 +16,8 @@ contract Auction {
     commitment[] private commitments;
     mapping(address => uint256) bidderToAmount;
 
-    enum State {CREATED, OPENED, CLOSED, RELEASED}
+    // reduce to only 3 stages
+    enum State {CREATED, OPENED, CLOSED}
 
     // total Ether stored
     uint256 public totalEther;
@@ -28,7 +29,6 @@ contract Auction {
     uint256 public startTime;
     uint256 public timeLimit;
     uint256 public constant MULTIPLIER = 10**12;
-    uint256 public countBidder;
 
     CypherpunkCoin private token;
     State public currState;
@@ -83,7 +83,6 @@ contract Auction {
             "The demand is larger than supply, the contract should close now"
         );
 
-        if (bidderToAmount[msg.sender] == 0) countBidder++;
         totalEther = totalEther.add(msg.value);
         commitments.push(commitment(msg.sender, msg.value));
         bidderToAmount[msg.sender] = bidderToAmount[msg.sender].add(msg.value);
@@ -105,17 +104,14 @@ contract Auction {
                 bidderToAmount[msg.sender] = bidderToAmount[msg.sender].sub(
                     ethSendBack
                 );
-                currState = State.CLOSED;
-                emit changeState(currState);
                 msg.sender.transfer(ethSendBack);
-            } else {
-                currState = State.CLOSED;
-                emit changeState(currState);
             }
+            currState = State.CLOSED;
+            emit changeState(currState);
             address payable payableTokenContract = address(
                 uint160(address(token))
             );
-            payableTokenContract.transfer(ethSendToTokenContract);
+            payableTokenContract.transfer(totalEther);
         }
     }
 
@@ -143,18 +139,24 @@ contract Auction {
             );
             clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
         }
-        currState = State.CLOSED;
         address payable payableTokenContract = address(uint160(address(token)));
-        payableTokenContract.transfer(ethSendToTokenContract);
+        payableTokenContract.transfer(totalEther);
+        currState = State.CLOSED;
         emit changeState(currState);
     }
 
     function claimTokens() external {
         require(
+            currState == State.CLOSED,
+            "The auction have to be in state closed to be released"
+        );
+        require(
             bidderToAmount[msg.sender] > 0,
             "You have not committed or have claimed your tokens already"
         );
-        uint256 tokenToTransfer = bidderToAmount[msg.sender].div(clearingPrice);
+        uint256 tokenToTransfer = bidderToAmount[msg.sender].div(
+            clearingPrice.mul(MULTIPLIER)
+        );
         token.transfer(msg.sender, tokenToTransfer);
         bidderToAmount[msg.sender] = 0;
     }
