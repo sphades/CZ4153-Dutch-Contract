@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-import "./AuctionAgainstReentry.sol";
+import "./AuctionAgainstAttack.sol";
 import "./CypherpunkCoin.sol";
 
 // auction.startPrice() * 10**12 * auction.tokenSupply()
@@ -9,15 +9,13 @@ import "./CypherpunkCoin.sol";
 // the trick is try to become the last bidder and exploit releaseTokens as
 // it transfer ether to an external agent
 
-// this reentry attack will work with the auction
+// this dos attack will work with the auction
 // of startPrice = 3000, endingPrice = 2000 and supply = 200 in 5 minutes
 // here we attack the method releaseTokens
 // the amount of commit is 1 Eth, which makes demand higher than the supply
 // and this contract will be the last bidder
 // however, when others want to release the tokens, Auction contract
-// will have to pay this contract, and call the payable function, which
-// call release tokens again and generate errors
-// therefore, no one can claim the tokens because of this attack
+// will have to pay this contract, and call the payable function, which reverts
 contract DoSAttack {
     Auction auction;
     address owner;
