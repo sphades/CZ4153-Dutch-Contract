@@ -87,8 +87,9 @@ contract Auction {
         commitments.push(commitment(msg.sender, msg.value));
         bidderToAmount[msg.sender] = bidderToAmount[msg.sender].add(msg.value);
         emit newCommit(totalEther);
+        // change here
         // to check whether the demand is larger than supply
-        // avoid the reentry attack by paying the last bidder or not at the commitment stage
+        // avoid the attack by paying the last bidder or not at the commitment stage
         // if it fails, then the commitment is failed and this
         // does not affect other bidders
         if (totalEther >= tokenSupply.mul(curPrice.mul(MULTIPLIER))) {
@@ -145,6 +146,7 @@ contract Auction {
         emit changeState(currState);
     }
 
+    // change here
     function claimTokens() external {
         require(
             currState == State.CLOSED,
