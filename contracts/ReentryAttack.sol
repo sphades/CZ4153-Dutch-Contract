@@ -18,7 +18,7 @@ import "./CypherpunkCoin.sol";
 // will have to pay this contract, and call the payable function, which
 // call release tokens again and generate errors
 // therefore, no one can claim the tokens because of this attack
-contract ReentryAttack {
+contract DoSAttack {
     Auction auction;
     address owner;
 
