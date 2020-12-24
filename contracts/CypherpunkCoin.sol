@@ -2,7 +2,7 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
-import "./Auction.sol";
+import "./AuctionAgainstReentry.sol";
 
 contract CypherpunkCoin is AccessControl, ERC20Burnable {
     bytes32 public constant AUCTION_CREATOR_ROLE = keccak256(
