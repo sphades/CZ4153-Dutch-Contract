@@ -1,7 +1,7 @@
 Welcome to CypherPunk project! 
 
 # About this project
-This project is to create an Auction that follows the idea of Dutch Auction where the price is determined by the market. More information on the model of this auction is here: https://algorand.foundation/algo-auctions 
+This project is to create an ICO that follows the idea of Dutch Auction where the price is determined by the market. More information on the model of this auction is here: https://algorand.foundation/algo-auctions 
 
 # Guide to run the app
 
