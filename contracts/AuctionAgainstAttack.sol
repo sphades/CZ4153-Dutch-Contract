@@ -5,7 +5,7 @@ import "./CypherpunkCoin.sol";
 
 // import "./preventReentryTransfer";
 
-contract Auction {
+contract AuctionAgainstAttack {
     using SafeMath for uint256;
 
     struct commitment {
@@ -71,12 +71,13 @@ contract Auction {
         require(now.sub(startTime) < timeLimit, "The contract is over ");
 
         // calculate the current price at this time
-        uint256 curPrice = (startTime.add(timeLimit).sub(now))
-            .mul(1000)
-            .div(timeLimit)
-            .mul(startPrice.sub(reservedPrice))
-            .div(1000)
-            .add(reservedPrice);
+        uint256 curPrice =
+            (startTime.add(timeLimit).sub(now))
+                .mul(1000)
+                .div(timeLimit)
+                .mul(startPrice.sub(reservedPrice))
+                .div(1000)
+                .add(reservedPrice);
         // check whether the total Demand already exceeds supply
         require(
             totalEther < tokenSupply.mul(curPrice * MULTIPLIER),
@@ -94,9 +95,8 @@ contract Auction {
         // does not affect other bidders
         if (totalEther >= tokenSupply.mul(curPrice.mul(MULTIPLIER))) {
             clearingPrice = curPrice;
-            uint256 ethSendBack = totalEther.sub(
-                tokenSupply.mul(clearingPrice.mul(MULTIPLIER))
-            );
+            uint256 ethSendBack =
+                totalEther.sub(tokenSupply.mul(clearingPrice.mul(MULTIPLIER)));
             if (ethSendBack > 0) {
                 totalEther = totalEther.sub(ethSendBack);
                 commitments[commitments.length - 1].amount = (msg.value).sub(
@@ -109,9 +109,8 @@ contract Auction {
             }
             currState = State.CLOSED;
             emit changeState(currState);
-            address payable payableTokenContract = address(
-                uint160(address(token))
-            );
+            address payable payableTokenContract =
+                address(uint160(address(token)));
             payableTokenContract.transfer(totalEther);
         }
     }
@@ -126,12 +125,13 @@ contract Auction {
                 clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
         } else {
-            uint256 curPrice = (startTime.add(timeLimit).sub(now))
-                .mul(1000)
-                .div(timeLimit)
-                .mul(startPrice.sub(reservedPrice))
-                .div(1000)
-                .add(reservedPrice);
+            uint256 curPrice =
+                (startTime.add(timeLimit).sub(now))
+                    .mul(1000)
+                    .div(timeLimit)
+                    .mul(startPrice.sub(reservedPrice))
+                    .div(1000)
+                    .add(reservedPrice);
             // In case the number of ethers staked already makes the demand exceed supply
             // when price decreases
             require(
@@ -156,9 +156,8 @@ contract Auction {
             bidderToAmount[msg.sender] > 0,
             "You have not committed or have claimed your tokens already"
         );
-        uint256 tokenToTransfer = bidderToAmount[msg.sender].div(
-            clearingPrice.mul(MULTIPLIER)
-        );
+        uint256 tokenToTransfer =
+            bidderToAmount[msg.sender].div(clearingPrice.mul(MULTIPLIER));
         token.transfer(msg.sender, tokenToTransfer);
         bidderToAmount[msg.sender] = 0;
     }
