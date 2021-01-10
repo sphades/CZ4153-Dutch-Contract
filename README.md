@@ -17,7 +17,7 @@ var c = await CypherpunkCoin.deployed()
 
 c.createAuction(100000, 10000, 100, 20) // create auction contract, with start price of 100000 mEth, reservedPrice of 10000 mEth, total supply of 100 tokens. This auction lasts for 20 minutes
 
-c.openCurrAuction // start the auction contract
+c.openCurrAuction() // start the auction contract
 
 Thereafter, open a new command prompt in the same directory and follow these commands:
 
@@ -25,5 +25,6 @@ cd client
 
 npm start // start the dapp
 
+# Security issues
+Security issues are discussed in the term paper.
 
-Please check out the AuctionAgainstAttack.sol and DoSAttack.sol in folder contracts to see our protection and attack respectively!
