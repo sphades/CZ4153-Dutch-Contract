@@ -2,12 +2,11 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
-import "./AuctionAgainstReentry.sol";
+import "./Auction.sol";
 
 contract CypherpunkCoin is AccessControl, ERC20Burnable {
-    bytes32 public constant AUCTION_CREATOR_ROLE = keccak256(
-        "AUCTION_CREATOR_ROLE"
-    );
+    bytes32 public constant AUCTION_CREATOR_ROLE =
+        keccak256("AUCTION_CREATOR_ROLE");
 
     constructor(string memory name, string memory symbol)
         public
@@ -35,13 +34,8 @@ contract CypherpunkCoin is AccessControl, ERC20Burnable {
             hasRole(AUCTION_CREATOR_ROLE, msg.sender),
             "CypherpunkCoin: must have auction creator role to create an auction"
         );
-        Auction auction = new Auction(
-            _startPrice,
-            _reservedPrice,
-            _supply,
-            _timeLimit,
-            this
-        );
+        Auction auction =
+            new Auction(_startPrice, _reservedPrice, _supply, _timeLimit, this);
         transfer(address(auction), _supply);
         auctionAddress = address(auction);
     }

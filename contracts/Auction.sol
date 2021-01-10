@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./CypherpunkCoin.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Auction1 is AccessControl {
+contract Auction is AccessControl {
     using SafeMath for uint256;
 
     struct commitment {
@@ -69,12 +69,13 @@ contract Auction1 is AccessControl {
         // calculate the current price at this time, we follow the linear model
         // curPrice = (startTime+timeLimit-now)/timeLimit*(startPrice-reservedPrice)
         // + reservedPrice
-        uint256 curPrice = (startTime.add(timeLimit).sub(now))
-            .mul(1000)
-            .div(timeLimit)
-            .mul(startPrice.sub(reservedPrice))
-            .div(1000)
-            .add(reservedPrice);
+        uint256 curPrice =
+            (startTime.add(timeLimit).sub(now))
+                .mul(1000)
+                .div(timeLimit)
+                .mul(startPrice.sub(reservedPrice))
+                .div(1000)
+                .add(reservedPrice);
 
         // check whether the total Demand already exceeds supply as price decreases over time
         require(
@@ -105,12 +106,13 @@ contract Auction1 is AccessControl {
                 clearingPrice = totalEther.div(tokenSupply).div(MULTIPLIER);
             } else clearingPrice = reservedPrice;
         } else {
-            uint256 curPrice = (startTime.add(timeLimit).sub(now))
-                .mul(1000)
-                .div(timeLimit)
-                .mul(startPrice.sub(reservedPrice))
-                .div(1000)
-                .add(reservedPrice);
+            uint256 curPrice =
+                (startTime.add(timeLimit).sub(now))
+                    .mul(1000)
+                    .div(timeLimit)
+                    .mul(startPrice.sub(reservedPrice))
+                    .div(1000)
+                    .add(reservedPrice);
             // In case the number of ethers staked already makes the demand exceed supply
             // when price decreases
             require(
@@ -135,18 +137,17 @@ contract Auction1 is AccessControl {
         uint256 remainingToken = tokenSupply;
         for (uint256 i = 0; i < commitments.length; i++) {
             // token to transfer to the bidder
-            uint256 tokenTransfer = commitments[i].amount.div(
-                clearingPrice * MULTIPLIER
-            );
+            uint256 tokenTransfer =
+                commitments[i].amount.div(clearingPrice * MULTIPLIER);
             if (tokenTransfer > remainingToken) {
                 //send back redundant ether to the last bidder
-                address payable payableLastBidder = address(
-                    uint160(commitments[i].bidder)
-                );
+                address payable payableLastBidder =
+                    address(uint160(commitments[i].bidder));
                 tokenTransfer = remainingToken;
-                uint256 ethSendToPayableLastBidder = commitments[i].amount.sub(
-                    tokenTransfer.mul(clearingPrice * MULTIPLIER)
-                );
+                uint256 ethSendToPayableLastBidder =
+                    commitments[i].amount.sub(
+                        tokenTransfer.mul(clearingPrice * MULTIPLIER)
+                    );
                 payableLastBidder.transfer(ethSendToPayableLastBidder);
                 ethSendToTokenContract = ethSendToTokenContract.sub(
                     ethSendToPayableLastBidder
