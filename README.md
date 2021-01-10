@@ -7,6 +7,8 @@ This project is to create an Auction that follows the idea of Dutch Auction wher
 
 Prerequisites: Ganache, NPM, Metamask
 
+Open your Ganache UI
+
 Open a command prompt in the project directory: truffle migrate --reset //compiles and deploy the cryptotoken contract
 
 After that, open the truffle console by this command line: truffle console
@@ -25,6 +27,10 @@ cd client
 
 npm start // start the dapp
 
+The web address now is at localhost:3000. Login into Metamask, connect to localhost of Ganache and add any account from Ganache to Metamask.
+
+Finally, play with the app :)
 # Security issues
-Security issues are discussed in the term paper.
+
+Security issues are discussed in the term paper (in directory paper)
 
